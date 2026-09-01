@@ -1,6 +1,6 @@
 ## Please make sure there isn't an open PR request for the same change before continuing.
 
-## What us the purpose of this PR?
+## What is the purpose of this PR?
 
 ## What should the reviewer be looking at?
 
