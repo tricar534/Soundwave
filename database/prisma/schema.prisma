@@ -1,0 +1,12 @@
+// Soundwaves Prisma schema
+// BIGINT semantics, e.g.:
+//   id BigInt @id @default(autoincrement())
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
