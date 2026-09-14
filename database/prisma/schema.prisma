@@ -1,7 +1,3 @@
-// Soundwaves Prisma schema
-// BIGINT semantics, e.g.:
-//   id BigInt @id @default(autoincrement())
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -9,4 +5,128 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Artist {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  bio       String?  @db.Text
+  imagePath String?  @map("image_path") @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  trackArtists TrackArtist[]
+  albumArtists AlbumArtist[]
+
+  @@map("artists")
+}
+
+model Album {
+  id          BigInt    @id @default(autoincrement())
+  title       String    @db.VarChar(255)
+  releaseDate DateTime? @map("release_date") @db.Date
+  artworkId   BigInt?   @map("artwork_id")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  artwork      Artwork?     @relation(fields: [artworkId], references: [id], onDelete: SetNull)
+  tracks       Track[]
+  albumArtists AlbumArtist[]
+
+  @@map("albums")
+}
+
+model Track {
+  id          BigInt   @id @default(autoincrement())
+  albumId     BigInt?  @map("album_id")
+  title       String   @db.VarChar(255)
+  trackNumber Int?     @map("track_number") @db.SmallInt
+  durationMs  Int      @map("duration_ms")
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  album        Album?        @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  trackArtists TrackArtist[]
+  trackGenres  TrackGenre[]
+  mediaFiles   MediaFile[]
+
+  @@map("tracks")
+}
+
+model Genre {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique(map: "uq_genres_name") @db.VarChar(100)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  trackGenres TrackGenre[]
+
+  @@map("genres")
+}
+
+model Artwork {
+  id        BigInt   @id @default(autoincrement())
+  filePath  String   @unique(map: "uq_artwork_file_path") @map("file_path") @db.VarChar(500)
+  fileName  String   @map("file_name") @db.VarChar(255)
+  mediaType String   @map("media_type") @db.VarChar(100)
+  fileSize  BigInt?  @map("file_size")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  albums Album[]
+
+  @@map("artwork")
+}
+
+model MediaFile {
+  id        BigInt   @id @default(autoincrement())
+  trackId   BigInt   @map("track_id")
+  filePath  String   @unique(map: "uq_media_files_file_path") @map("file_path") @db.VarChar(500)
+  fileName  String   @map("file_name") @db.VarChar(255)
+  mediaType String   @map("media_type") @db.VarChar(100)
+  fileSize  BigInt   @map("file_size")
+  codec     String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("media_files")
+}
+
+model TrackArtist {
+  trackId     BigInt  @map("track_id")
+  artistId    BigInt  @map("artist_id")
+  artistOrder Int     @default(1) @map("artist_order") @db.SmallInt
+  role        String? @db.VarChar(50)
+
+  track  Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Restrict)
+
+  @@id([trackId, artistId])
+  @@map("track_artists")
+}
+
+model AlbumArtist {
+  albumId     BigInt  @map("album_id")
+  artistId    BigInt  @map("artist_id")
+  artistOrder Int     @default(1) @map("artist_order") @db.SmallInt
+  isPrimary   Boolean @default(false) @map("is_primary")
+
+  album  Album  @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Restrict)
+
+  @@id([albumId, artistId])
+  @@map("album_artists")
+}
+
+model TrackGenre {
+  trackId BigInt @map("track_id")
+  genreId BigInt @map("genre_id")
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Restrict)
+
+  @@id([trackId, genreId])
+  @@map("track_genres")
 }
