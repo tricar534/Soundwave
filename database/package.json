@@ -1,0 +1,27 @@
+{
+  "name": "soundwaves-database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19 <21 || >=22.12 <23 || >=24 <25"
+  },
+  "scripts": {
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "db:status": "prisma migrate status",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "^17.4.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "prisma": "7.10.0"
+  }
+}
