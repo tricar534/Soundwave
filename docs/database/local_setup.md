@@ -68,7 +68,7 @@ docker compose logs postgres
 
 ## Prisma Client Generation
 
-Generate the Prisma client after installing dependencies or after
+Generate the Prisma client after installing dependencies or there are
 changes are made to the Prisma schema:
 
 ```bash
