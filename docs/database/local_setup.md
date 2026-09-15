@@ -30,7 +30,7 @@ connection string used by Prisma.
 
 Credentials must be configured using `.env`.
 
-Real credentials must never be committed to GitHub.
+Real credentials should never be committed to GitHub.
 
 ## Install Database Dependencies
 
@@ -80,10 +80,6 @@ The generated Prisma client is stored in the configured
 
 ## Apply Database Migrations
 
-The Docker environment creates the PostgreSQL service, but the
-Soundwaves database schema is created and updated through Prisma
-migrations.
-
 Apply the version-controlled migrations with:
 
 ```bash
@@ -92,9 +88,6 @@ npx prisma migrate deploy
 
 This creates the database tables, relationships, indexes, and
 constraints defined by the project migrations.
-
-During development, a developer creating a new migration may use the
-appropriate Prisma development migration command.
 
 ## Seed the Database
 
@@ -116,7 +109,7 @@ and local development.
 
 ## Run Database Validation Tests
 
-Run the Sprint 1 database validation suite with:
+Run the (Sprint 1) database validation suite with:
 
 ```bash
 npm run test:db
@@ -219,7 +212,7 @@ docker compose down
 
 ## Stop and Delete Database Data
 
-WARNING: This deletes the local development database and its stored
+Remember, his deletes the local development database and its stored
 Docker volume.
 
 ```bash
@@ -307,14 +300,4 @@ To completely reset the database:
 ```bash
 docker compose down -v
 ```
-
-````
-
-This should be enough to make `local_setup.md` your **Task 12 deliverable** rather than creating another documentation file.
-
-A fitting commit message would be:
-
-```text
-docs(db): complete database setup and usage documentation
-````
 
