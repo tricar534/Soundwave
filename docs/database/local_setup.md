@@ -300,4 +300,3 @@ To completely reset the database:
 ```bash
 docker compose down -v
 ```
-
