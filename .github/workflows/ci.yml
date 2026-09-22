@@ -25,3 +25,27 @@ jobs:
 
       - name: Verify README
         run: test -f README.md
+
+  database-health:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Verify PostgreSQL connection
+        env:
+          PGPASSWORD: change_me
+        run: |
+          psql -h localhost -U soundwaves_dev -d soundwaves -c "SELECT 1;"
