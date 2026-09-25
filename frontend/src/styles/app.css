@@ -93,6 +93,10 @@ button {
   color: #ffffff;
 }
 
+.search-page-input {
+  margin-bottom: 24px;
+}
+
 .media-grid {
   display: grid;
 
