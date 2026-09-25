@@ -1,5 +1,6 @@
 import { useState } from "react";
 import MediaCard from "../components/MediaCard";
+import PageHeader from "../components/PageHeader";
 
 const mockSongs = [
   {
@@ -29,15 +30,13 @@ function SearchPage() {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <div>
-          <h2>Search</h2>
-          <p>Find songs, artists, and albums.</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Search"
+        description="Find songs, artists, and albums."
+      />
 
       <input
-        className="search-input"
+        className="search-input search-page-input"
         type="search"
         placeholder="Search Soundwave"
         value={query}

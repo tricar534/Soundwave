@@ -1,12 +1,12 @@
+import PageHeader from "../components/PageHeader";
+
 function LibraryPage() {
   return (
     <div className="page">
-      <header className="page-header">
-        <div>
-          <h2>Your Library</h2>
-          <p>Your saved music will appear here.</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Your Library"
+        description="Your saved music will appear here."
+      />
 
       <section className="empty-state">
         <h3>No saved music yet</h3>
