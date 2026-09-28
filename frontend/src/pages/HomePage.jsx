@@ -41,21 +41,20 @@ function HomePage() {
         />
       </PageHeader>
       
-
       <MediaSection title="Recently Played">
-  {recentlyPlayed.map((item) => (
-    <MediaCard
-      key={item.id}
-      title={item.title}
-      subtitle={item.subtitle}
-      image={item.image}
-      type={item.type}
-      onSelect={() =>
-        console.log(`Selected ${item.title}`)
-      }
-    />
-  ))}
-</MediaSection>
+        {recentlyPlayed.map((item) => (
+          <MediaCard
+            key={item.id}
+            title={item.title}
+            subtitle={item.subtitle}
+            image={item.image}
+            type={item.type}
+            onSelect={() =>
+              console.log(`Selected ${item.title}`)
+            }
+          />
+        ))}
+      </MediaSection>
     </div>
   );
 }
