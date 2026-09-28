@@ -26,6 +26,54 @@ const recentlyPlayed = [
   },
 ];
 
+const recommended = [
+  {
+    id: 4,
+    title: "Late Night Mix",
+    subtitle: "Soundwave",
+    image: "/images/late-night-mix.jpg",
+    type: "Playlist",
+  },
+  {
+    id: 5,
+    title: "Morning Focus",
+    subtitle: "Soundwave",
+    image: "/images/morning-focus.jpg",
+    type: "Playlist",
+  },
+  {
+    id: 6,
+    title: "Discover Weekly",
+    subtitle: "Soundwave",
+    image: "/images/discover-weekly.jpg",
+    type: "Playlist",
+  },
+];
+
+const madeForYou = [
+  {
+    id: 7,
+    title: "Daily Mix",
+    subtitle: "Personalized Mix",
+    image: "/images/daily-mix.jpg",
+    type: "Playlist",
+  },
+  {
+    id: 8,
+    title: "Acoustic Sessions",
+    subtitle: "Soundwave Picks",
+    image: "/images/acoustic-sessions.jpg",
+    type: "Playlist",
+  },
+  {
+    id: 9,
+    title: "Weekend Energy",
+    subtitle: "Soundwave Mix",
+    image: "/images/weekend-energy.jpg",
+    type: "Playlist",
+  },
+];
+
 function HomePage() {
   return (
     <div className="page">
@@ -40,13 +88,50 @@ function HomePage() {
           aria-label="Search music"
         />
       </PageHeader>
-      
 
       <section>
         <h2>Recently Played</h2>
 
         <div className="media-grid">
           {recentlyPlayed.map((item) => (
+            <MediaCard
+              key={item.id}
+              title={item.title}
+              subtitle={item.subtitle}
+              image={item.image}
+              type={item.type}
+              onSelect={() =>
+                console.log(`Selected ${item.title}`)
+              }
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>Recommended</h2>
+
+        <div className="media-grid">
+          {recommended.map((item) => (
+            <MediaCard
+              key={item.id}
+              title={item.title}
+              subtitle={item.subtitle}
+              image={item.image}
+              type={item.type}
+              onSelect={() =>
+                console.log(`Selected ${item.title}`)
+              }
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>Made for You</h2>
+
+        <div className="media-grid">
+          {madeForYou.map((item) => (
             <MediaCard
               key={item.id}
               title={item.title}
