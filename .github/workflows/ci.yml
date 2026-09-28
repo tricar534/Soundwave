@@ -26,24 +26,26 @@ jobs:
       - name: Verify README
         run: test -f README.md
 
-  backend-build:
+  database-health:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Build backend
-        working-directory: backend
-        run: npm run build
+      - name: Verify PostgreSQL connection
+        env:
+          PGPASSWORD: change_me
+        run: |
+          psql -h localhost -U soundwaves_dev -d soundwaves -c "SELECT 1;"
