@@ -105,7 +105,7 @@ function HomePage() {
       </MediaSection>
 
       <MediaSection title="Recommended">
-        {recentlyPlayed.map((item) => (
+        {recommended.map((item) => (
           <MediaCard
             key={item.id}
             title={item.title}
@@ -120,7 +120,7 @@ function HomePage() {
       </MediaSection>
 
       <MediaSection title="Made for You">
-        {recentlyPlayed.map((item) => (
+        {madeForYou.map((item) => (
           <MediaCard
             key={item.id}
             title={item.title}
