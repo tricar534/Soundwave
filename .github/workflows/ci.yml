@@ -67,7 +67,14 @@ jobs:
 
       - name: Run frontend tests
         working-directory: frontend
-        run: npm test --if-present
+        run: npm test
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_VERSION }}-frontend
+          path: frontend/dist/
+          if-no-files-found: error
 
 
   backend:
@@ -93,7 +100,14 @@ jobs:
 
       - name: Run backend tests
         working-directory: backend
-        run: npm test --if-present
+        run: npm test
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_VERSION }}-backend
+          path: backend/dist/
+          if-no-files-found: error
 
 
   database:
@@ -142,10 +156,6 @@ jobs:
       - name: Apply database migrations
         working-directory: database
         run: npm run db:deploy
-
-      - name: Seed test database
-        working-directory: database
-        run: npm run db:seed
 
       - name: Run database validation tests
         working-directory: database
