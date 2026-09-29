@@ -60,6 +60,33 @@ The generated production files will be placed in:
 frontend/dist/
 ```
 
+## Testing
+
+Frontend tests use Vitest and Testing Library.
+
+Run tests from the `frontend` directory:
+
+```bash
+npm test
+```
+
+The current test suite covers:
+
+- Shared component rendering
+- MediaCard interaction behavior
+- Sidebar navigation behavior
+- PlaybackBar controls
+- Home page rendering
+- Search page filtering
+- Library empty-state rendering
+
+To verify both automated tests and the production build:
+
+```bash
+npm test
+npm run build
+```
+
 ## Preview Production Build
 
 After building:
