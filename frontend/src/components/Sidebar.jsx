@@ -32,6 +32,9 @@ function Sidebar({ currentPage, onNavigate }) {
                     : "nav-button"
                 }
                 onClick={() => onNavigate(item.id)}
+                aria-current={
+                  currentPage == item.id ? "page" : undefined
+                }
               >
                 {item.label}
               </button>

@@ -1,20 +1,18 @@
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
+
 function LibraryPage() {
   return (
     <div className="page">
-      <header className="page-header">
-        <div>
-          <h2>Your Library</h2>
-          <p>Your saved music will appear here.</p>
-        </div>
-      </header>
+      <PageHeader
+        title="Your Library"
+        description="Your saved music will appear here."
+      />
 
-      <section className="empty-state">
-        <h3>No saved music yet</h3>
-        <p>
-          Albums, songs, artists, and playlists
-          will appear here once they are added.
-        </p>
-      </section>
+      <EmptyState
+        title="No saved music yet"
+        message="Albums, songs, artists, and playlists will appear here once they are added."
+      />
     </div>
   );
 }

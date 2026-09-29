@@ -65,9 +65,10 @@ jobs:
         working-directory: frontend
         run: npm test --if-present
 
+      - name: Verify README
+        run: test -f README.md
 
-  backend:
-    name: Backend CI
+  frontend-build:
     runs-on: ubuntu-latest
 
     steps:
