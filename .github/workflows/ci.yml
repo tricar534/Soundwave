@@ -65,6 +65,7 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+  database-migrations:
       - name: Run frontend tests
         working-directory: frontend
         run: npm test --if-present
@@ -114,6 +115,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          
 
     env:
       DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
@@ -125,6 +127,25 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: database/package-lock.json
+
+      - name: Install database dependencies
+        working-directory: database
+        run: npm ci  
+
+      - name: Apply Prisma migrations
+        working-directory: database
+        env:
+          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
+        run: npm run db:deploy    
+
+      - name: Verify migration status
+        working-directory: database
+        env:
+          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
+        run: npm run db:status 
           node-version: 24
 
       - name: Install database dependencies
