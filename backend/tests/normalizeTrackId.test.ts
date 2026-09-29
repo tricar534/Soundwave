@@ -7,6 +7,6 @@ describe('normalizeTrackId', () => {
   });
 
   it('leaves an already clean track ID unchanged', () => {
-    expect(normalizeTrackId('track-456')).toBe('WRONG-VALUE');
+    expect(normalizeTrackId('track-456')).toBe('track-456');
   });
 });
