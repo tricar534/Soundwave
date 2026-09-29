@@ -1,9 +1,12 @@
 name: Soundwave CI
 
 on:
+  workflow_dispatch:
+
   pull_request:
     branches:
       - main
+
   push:
     branches:
       - main
@@ -69,10 +72,16 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  database-migrations:
       - name: Run frontend tests
         working-directory: frontend
-        run: npm test --if-present
+        run: npm test
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_VERSION }}-frontend
+          path: frontend/dist/
+          if-no-files-found: error
 
 
   backend:
@@ -98,7 +107,14 @@ jobs:
 
       - name: Run backend tests
         working-directory: backend
-        run: npm test --if-present
+        run: npm test
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_VERSION }}-backend
+          path: backend/dist/
+          if-no-files-found: error
 
 
   database:
@@ -119,7 +135,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          
 
     env:
       DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
@@ -131,25 +146,6 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: database/package-lock.json
-
-      - name: Install database dependencies
-        working-directory: database
-        run: npm ci  
-
-      - name: Apply Prisma migrations
-        working-directory: database
-        env:
-          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
-        run: npm run db:deploy    
-
-      - name: Verify migration status
-        working-directory: database
-        env:
-          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
-        run: npm run db:status 
           node-version: 24
 
       - name: Install database dependencies
@@ -168,7 +164,11 @@ jobs:
         working-directory: database
         run: npm run db:deploy
 
-      - name: Seed test database
+      - name: Verify migration status
+        working-directory: database
+        run: npm run db:status
+
+      - name: Seed database
         working-directory: database
         run: npm run db:seed
 
