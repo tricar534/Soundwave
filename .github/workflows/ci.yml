@@ -41,20 +41,21 @@ jobs:
         with:
           node-version: 24
 
-
       - name: Install frontend dependencies
+        working-directory: frontend
         run: npm install
 
       - name: Build frontend
+        working-directory: frontend
         run: npm run build
 
       - name: Run frontend tests
+        working-directory: frontend
         run: npm test --if-present
 
-      - name: Verify README
-        run: test -f README.md
 
-  frontend-build:
+  backend:
+    name: Backend CI
     runs-on: ubuntu-latest
 
     steps:
@@ -67,22 +68,21 @@ jobs:
           node-version: 24
 
       - name: Install backend dependencies
+        working-directory: backend
         run: npm install
 
       - name: Build backend
+        working-directory: backend
         run: npm run build
 
       - name: Run backend tests
+        working-directory: backend
         run: npm test --if-present
 
 
   database:
     name: Database CI
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: database
 
     steps:
       - name: Checkout repository
@@ -93,14 +93,16 @@ jobs:
         with:
           node-version: 24
 
-      - name: Install frontend dependencies
-        working-directory: frontend
+      - name: Install database dependencies
+        working-directory: database
         run: npm ci
 
       - name: Build database project
+        working-directory: database
         run: npm run build --if-present
 
       - name: Run database tests
+        working-directory: database
         run: npm test --if-present
 
 
