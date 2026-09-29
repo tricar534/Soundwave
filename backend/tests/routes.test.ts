@@ -17,8 +17,13 @@ describe('Backend routes', () => {
     const response = await request(app).get('/api/tracks');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      message: 'Track route is working'
-    });
+
+    expect(response.body).toHaveProperty("tracks");
+    expect(Array.isArray(response.body.tracks)).toBe(true);
+
+    expect(response.body).toHaveProperty("count");
+    expect(typeof response.body.count).toBe("number");
+
+    expect(response.body.count).toBe(response.body.tracks.length);
   });
 });
