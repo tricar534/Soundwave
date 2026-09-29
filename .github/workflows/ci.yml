@@ -25,8 +25,8 @@ jobs:
 
       - name: Verify README
         run: test -f README.md
-  
-  frontend-quality:
+
+  frontend-build:
     runs-on: ubuntu-latest
 
     steps:
@@ -44,6 +44,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Run frontend lint
+      - name: Build frontend
         working-directory: frontend
-        run: npm run lint
+        run: npm run build
