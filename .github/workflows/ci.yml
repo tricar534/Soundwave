@@ -157,6 +157,10 @@ jobs:
         working-directory: database
         run: npm run db:deploy
 
+      - name: Seed database
+        working-directory: database
+        run: npm run db:seed
+
       - name: Run database validation tests
         working-directory: database
         run: npm run test:db
