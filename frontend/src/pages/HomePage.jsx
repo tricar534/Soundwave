@@ -1,4 +1,6 @@
+import PageHeader from "../components/PageHeader";
 import MediaCard from "../components/MediaCard";
+import MediaSection from "../components/MediaSection";
 
 const recentlyPlayed = [
   {
@@ -27,38 +29,32 @@ const recentlyPlayed = [
 function HomePage() {
   return (
     <div className="page">
-      <header className="page-header">
-        <div>
-          <h2>Home</h2>
-          <p>Welcome back to Soundwave.</p>
-        </div>
-
+      <PageHeader
+        title="Home"
+        description="Welcome back to Soundwave."
+      >
         <input
           className="search-input"
           type="search"
           placeholder="Search songs, artists, or albums"
           aria-label="Search music"
         />
-      </header>
-
-      <section>
-        <h2>Recently Played</h2>
-
-        <div className="media-grid">
-          {recentlyPlayed.map((item) => (
-            <MediaCard
-              key={item.id}
-              title={item.title}
-              subtitle={item.subtitle}
-              image={item.image}
-              type={item.type}
-              onSelect={() =>
-                console.log(`Selected ${item.title}`)
-              }
-            />
-          ))}
-        </div>
-      </section>
+      </PageHeader>
+      
+      <MediaSection title="Recently Played">
+        {recentlyPlayed.map((item) => (
+          <MediaCard
+            key={item.id}
+            title={item.title}
+            subtitle={item.subtitle}
+            image={item.image}
+            type={item.type}
+            onSelect={() =>
+              console.log(`Selected ${item.title}`)
+            }
+          />
+        ))}
+      </MediaSection>
     </div>
   );
 }
