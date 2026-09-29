@@ -11,6 +11,10 @@ on:
 env:
   BUILD_VERSION: soundwave-build-${{ github.run_number }}
 
+  push:
+    branches:
+      - main
+
 jobs:
 
   repository-check:
