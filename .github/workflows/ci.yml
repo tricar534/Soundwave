@@ -57,6 +57,10 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
@@ -96,6 +100,24 @@ jobs:
     name: Database CI
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -109,13 +131,25 @@ jobs:
         working-directory: database
         run: npm ci
 
-      - name: Build database project
+      - name: Generate Prisma client
         working-directory: database
-        run: npm run build --if-present
+        run: npm run db:generate
 
-      - name: Run database tests
+      - name: Validate Prisma schema
         working-directory: database
-        run: npm test --if-present
+        run: npm run db:validate
+
+      - name: Apply database migrations
+        working-directory: database
+        run: npm run db:deploy
+
+      - name: Seed test database
+        working-directory: database
+        run: npm run db:seed
+
+      - name: Run database validation tests
+        working-directory: database
+        run: npm run test:db
 
 
   database-health:
