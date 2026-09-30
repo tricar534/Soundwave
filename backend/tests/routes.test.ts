@@ -18,7 +18,8 @@ describe('Backend routes', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      message: 'Track route is working'
+      tracks: [],
+      count: 0
     });
   });
 });
