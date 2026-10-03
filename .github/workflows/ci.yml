@@ -11,10 +11,6 @@ on:
 env:
   BUILD_VERSION: soundwave-build-${{ github.run_number }}
 
-  push:
-    branches:
-      - main
-
 jobs:
 
   repository-check:
@@ -56,23 +52,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
+        run: npm ci
 
       - name: Lint frontend
         working-directory: frontend
         run: npm run lint
 
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-
-  database-migrations:
       - name: Run frontend tests
         working-directory: frontend
         run: npm test
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
 
 
   backend:
@@ -87,10 +84,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
 
       - name: Build backend
         working-directory: backend
@@ -131,29 +130,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: npm
           cache-dependency-path: database/package-lock.json
 
       - name: Install database dependencies
         working-directory: database
         run: npm ci  
-
-      - name: Apply Prisma migrations
-        working-directory: database
-        env:
-          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
-        run: npm run db:deploy    
-
-      - name: Verify migration status
-        working-directory: database
-        env:
-          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
-        run: npm run db:status 
-          node-version: 24
-
-      - name: Install database dependencies
-        working-directory: database
-        run: npm ci
 
       - name: Generate Prisma client
         working-directory: database
@@ -166,6 +148,10 @@ jobs:
       - name: Apply database migrations
         working-directory: database
         run: npm run db:deploy
+
+      - name: Verify migration status
+        working-directory: database
+        run: npm run db:status
 
       - name: Seed test database
         working-directory: database
