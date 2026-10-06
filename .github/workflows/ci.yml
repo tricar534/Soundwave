@@ -1,5 +1,6 @@
 name: Soundwave CI
 
+# Run CI for pull requests into main and for changes pushed/merged to main.
 on:
   pull_request:
     branches:
@@ -8,15 +9,21 @@ on:
     branches:
       - main
 
+# Unique identifier for each GitHub Actions run.
+# Used to distinguish one Soundwave build from another.
 env:
   BUILD_VERSION: soundwave-build-${{ github.run_number }}
 
-  push:
-    branches:
-      - main
-
 jobs:
 
+  # Add new CI capabilities as separate top-level jobs when possible.
+  # This keeps checks isolated and reduces merge conflicts between contributors.
+
+  # ------------------------------------------------------------
+  # Repository structure validation
+  # Confirms the expected top-level project folders/files exist
+  # and records the build/commit information for this CI run.
+  # ------------------------------------------------------------
   repository-check:
     runs-on: ubuntu-latest
 
@@ -43,7 +50,11 @@ jobs:
       - name: Verify README
         run: test -f README.md
 
-
+  # ------------------------------------------------------------
+  # Frontend validation
+  # Installs the exact locked dependencies, then runs linting,
+  # automated frontend tests, and the production Vite build.
+  # ------------------------------------------------------------
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
@@ -56,25 +67,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
+        run: npm ci
 
       - name: Lint frontend
         working-directory: frontend
         run: npm run lint
 
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
-  database-migrations:
-      - name: Run frontend tests
-        working-directory: frontend
-        run: npm test --if-present
-
-
+  # ------------------------------------------------------------
+  # Backend validation
+  # Verifies the TypeScript/Express backend can install,
+  # compile, and pass its automated tests.
+  # ------------------------------------------------------------
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
@@ -87,10 +103,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
 
       - name: Build backend
         working-directory: backend
@@ -98,9 +116,15 @@ jobs:
 
       - name: Run backend tests
         working-directory: backend
-        run: npm test --if-present
+        run: npm test
 
-
+  # ------------------------------------------------------------
+  # Database and Prisma validation
+  # Starts a disposable PostgreSQL service for this CI job.
+  # The job then validates the Prisma schema, applies migrations,
+  # verifies migration state, seeds deterministic test data,
+  # and executes database validation tests.
+  # ------------------------------------------------------------
   database:
     name: Database CI
     runs-on: ubuntu-latest
@@ -119,10 +143,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          
-
+    
+    # Prisma receives this connection string for every step
+    # executed inside the database job.
     env:
-      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
 
     steps:
       - name: Checkout repository
@@ -132,29 +157,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: npm
           cache-dependency-path: database/package-lock.json
 
       - name: Install database dependencies
         working-directory: database
         run: npm ci  
-
-      - name: Apply Prisma migrations
-        working-directory: database
-        env:
-          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
-        run: npm run db:deploy    
-
-      - name: Verify migration status
-        working-directory: database
-        env:
-          DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
-        run: npm run db:status 
-          node-version: 24
-
-      - name: Install database dependencies
-        working-directory: database
-        run: npm ci
 
       - name: Generate Prisma client
         working-directory: database
@@ -168,6 +176,10 @@ jobs:
         working-directory: database
         run: npm run db:deploy
 
+      - name: Verify migration status
+        working-directory: database
+        run: npm run db:status
+
       - name: Seed test database
         working-directory: database
         run: npm run db:seed
@@ -176,8 +188,13 @@ jobs:
         working-directory: database
         run: npm run test:db
 
-
+  # ------------------------------------------------------------
+  # Independent PostgreSQL connectivity check
+  # Provides a simple PASS/FAIL signal that the PostgreSQL
+  # service accepts authenticated SQL connections.
+  # ------------------------------------------------------------
   database-health:
+    name: Database Health
     runs-on: ubuntu-latest
 
     services:
