@@ -36,7 +36,7 @@ const mockSongs = [
   id: 5,
   title: "City Lights",
   subtitle: "Neon Echo",
-  image: "/images/city-lights.jpg",
+  image: "/images/city-light.jpeg",
   type: "Song",
 },
 {
