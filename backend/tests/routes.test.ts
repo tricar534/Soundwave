@@ -18,11 +18,11 @@ describe('Backend routes', () => {
 
     expect(response.status).toBe(200);
 
-    expect(response.body).toHaveProperty('tracks');
+    expect(response.body).toHaveProperty("tracks");
     expect(Array.isArray(response.body.tracks)).toBe(true);
 
-    expect(response.body).toHaveProperty('count');
-    expect(typeof response.body.count).toBe('number');
+    expect(response.body).toHaveProperty("count");
+    expect(typeof response.body.count).toBe("number");
 
     expect(response.body.count).toBe(response.body.tracks.length);
   });
