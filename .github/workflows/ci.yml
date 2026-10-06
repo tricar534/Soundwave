@@ -96,10 +96,6 @@ jobs:
           path: frontend/dist/
           if-no-files-found: error
 
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-
   # ------------------------------------------------------------
   # Backend validation
   # Verifies the TypeScript/Express backend can install,
@@ -229,3 +225,63 @@ jobs:
           PGPASSWORD: change_me
         run: |
           psql -h localhost -U soundwaves_dev -d soundwaves -c "SELECT 1;"
+
+  integration-smoke-test:
+    name: Backend Database Integration Smoke Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install database dependencies
+        working-directory: database
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: database
+        run: npm run db:generate
+
+      - name: Apply migrations
+        working-directory: database
+        run: npm run db:deploy
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          node dist/index.js &
+          sleep 3
+
+      - name: Call health endpoint
+        run: curl -f http://localhost:4000/health
