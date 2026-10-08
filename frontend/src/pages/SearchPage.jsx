@@ -1,49 +1,50 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MediaCard from "../components/MediaCard";
 import PageHeader from "../components/PageHeader";
+import { getTracks } from "../services/api";
 
 const mockSongs = [
   {
     id: 1,
-    title: "Nightfall",
+    title: "Midnight Drive",
     subtitle: "Example Artist",
-    image: "/images/album-placeholder.jpg",
+    image: "/images/lofi.jpeg",
     type: "Song",
   },
   {
     id: 2,
-    title: "Night Drive",
-    subtitle: "Another Artist",
-    image: "/images/album-placeholder.jpg",
-    type: "Song",
+    title: "Chill Waves",
+    subtitle: "Soundwave Mix",
+    image: "/images/beach.jpeg",
+    type: "Playlist",
   },
   {
     id: 3,
-    title: "Late Night Mix",
-    subtitle: "Soundwave",
-    image: "/images/late-night-mix.jpg",
+    title: "Focus Mode",
+    subtitle: "Study Playlist",
+    image: "/images/sunset.jpeg",
     type: "Playlist",
   },
   {
     id: 4,
-    title: "Morning Focus",
+    title: "Late Night Mix",
     subtitle: "Soundwave",
-    image: "/images/morning-focus.jpg",
+    image: "/images/highway.jpeg",
     type: "Playlist",
   },
   {
   id: 5,
   title: "City Lights",
   subtitle: "Neon Echo",
-  image: "/images/city-lights.jpg",
+  image: "/images/city-light.jpeg",
   type: "Song",
 },
 {
   id: 6,
-  title: "Ocean Breeze",
-  subtitle: "Coastal Sounds",
-  image: "/images/ocean-breeze.jpg",
-  type: "Song",
+  title: "Discover Weekly",
+  subtitle: "Soundwave",
+  image: "/images/hand.jpeg",
+  type: "Playlist",
 },
 {
   id: 7,
@@ -70,8 +71,37 @@ const mockSongs = [
 
 function SearchPage() {
   const [query, setQuery] = useState("");
+  const [songs, setSongs] = useState(mockSongs);
+  const [catalogStatus, setCatalogStatus] = useState("loading");
 
-  const results = mockSongs.filter((song) =>
+   useEffect(() => {
+    async function loadTracks() {
+      try {
+        const data = await getTracks();
+
+        if (Array.isArray(data.tracks) && data.tracks.length > 0) {
+          // Do not map these into MediaCard yet until
+          // the backend track object structure is confirmed.
+          console.log("Backend tracks:", data.tracks);
+          setCatalogStatus("connected");
+        } else {
+          // Backend is working, but no real catalog data exists yet.
+          setSongs(mockSongs);
+          setCatalogStatus("empty");
+        }
+      } catch (error) {
+        console.error("Unable to load backend tracks:", error);
+
+        // Preserve working frontend content when API fails.
+        setSongs(mockSongs);
+        setCatalogStatus("unavailable");
+      }
+    }
+
+    loadTracks();
+  }, []);
+
+  const results = songs.filter((song) =>
     `${song.title} ${song.subtitle} ${song.type}`
       .toLowerCase()
       .includes(query.toLowerCase())
@@ -93,6 +123,19 @@ function SearchPage() {
           setQuery(event.target.value)
         }
       />
+
+      {catalogStatus === "loading" && (
+        <p>Loading catalog...</p>
+      )}
+      
+      {catalogStatus === "empty" && (
+        <p>Backend catalog is empty. Showing sample content.</p>
+      )}
+
+      {catalogStatus === "unavailable" && (
+        <p>Backend unavailable. Showing sample content.</p>
+      )}
+
 
       <div className="media-grid">
         {results.map((song) => (
