@@ -135,7 +135,39 @@ jobs:
           path: backend/dist/
           if-no-files-found: error
 
+  # ------------------------------------------------------------
+  # Backend lint validation
+  # Runs ESLint independently so code-quality failures are easy
+  # to identify without changing the existing backend CI job.
+  # ------------------------------------------------------------
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: backend
+        run: npm run lint
+
+  # ------------------------------------------------------------
+  # Database validation
+  # Verifies Prisma client generation, schema validity,
+  # migrations, seed data, and database validation tests.
+  # ------------------------------------------------------------
   database:
     name: Database CI
     runs-on: ubuntu-latest
@@ -187,6 +219,17 @@ jobs:
         working-directory: database
         run: npm run db:status
 
+      # Verify the required core Soundwave tables were created by migrations.
+      - name: Verify core database schema
+        env:
+          PGPASSWORD: change_me
+        run: |
+          TABLE_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('artists', 'albums', 'tracks', 'genres', 'users');")
+
+          echo "Found $TABLE_COUNT required Soundwave tables"
+
+          test "$TABLE_COUNT" -eq 5
+
       - name: Seed test database
         working-directory: database
         run: npm run db:seed
@@ -226,6 +269,11 @@ jobs:
         run: |
           psql -h localhost -U soundwaves_dev -d soundwaves -c "SELECT 1;"
 
+  # ------------------------------------------------------------
+  # Backend/database integration smoke test
+  # Starts a temporary PostgreSQL service, applies migrations,
+  # builds and starts the backend, then verifies the health endpoint.
+  # ------------------------------------------------------------
   integration-smoke-test:
     name: Backend Database Integration Smoke Test
     runs-on: ubuntu-latest

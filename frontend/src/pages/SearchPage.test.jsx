@@ -6,8 +6,8 @@ describe("SearchPage", () => {
   it("renders the initial mock search results", () => {
     render(<SearchPage />);
 
-    expect(screen.getByText("Nightfall")).toBeInTheDocument();
-    expect(screen.getByText("Night Drive")).toBeInTheDocument();
+    expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
+    expect(screen.getByText("Chill Waves")).toBeInTheDocument();
   });
 
   it("filters results based on the search query", () => {
@@ -16,10 +16,10 @@ describe("SearchPage", () => {
     const searchInput = screen.getByPlaceholderText("Search Soundwave");
 
     fireEvent.change(searchInput, {
-      target: { value: "Nightfall" },
+      target: { value: "Midnight" },
     });
 
-    expect(screen.getByText("Nightfall")).toBeInTheDocument();
-    expect(screen.queryByText("Night Drive")).not.toBeInTheDocument();
+    expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
+    expect(screen.queryByText("Chill Waves")).not.toBeInTheDocument();
   });
 });
