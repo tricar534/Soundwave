@@ -1,49 +1,67 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ApiStatus from "./ApiStatus";
 import * as api from "../services/api";
+import {
+  mockHealth,
+  silenceConsoleError,
+} from "../test/apiMocks";
 
 vi.mock("../services/api");
 
 describe("ApiStatus", () => {
-  it("shows connected when the backend health check succeeds", async () => {
-    api.getHealth.mockResolvedValue({
-      status: "ok",
-      service: "soundwave-backend",
-    });
+  it("shows checking while the health request is pending", () => {
+    mockHealth.success();
 
     render(<ApiStatus />);
 
     expect(
       screen.getByText("Backend: Checking...")
     ).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Backend: Connected")
-      ).toBeInTheDocument();
-    });
   });
 
-  it("shows unavailable when the backend health check fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    api.getHealth.mockRejectedValue(
-      new Error("Connection failed")
-    );
+  it("shows connected when the backend health check succeeds", async () => {
+    mockHealth.success();
 
     render(<ApiStatus />);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText("Backend: Unavailable")
-      ).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByText("Backend: Connected")
+    ).toBeInTheDocument();
+    expect(api.getHealth).toHaveBeenCalledTimes(1);
+  });
 
+  it("shows unavailable when health returns a non-ok status", async () => {
+    mockHealth.success({ status: "degraded" });
+
+    render(<ApiStatus />);
+
+    expect(
+      await screen.findByText("Backend: Unavailable")
+    ).toBeInTheDocument();
+  });
+
+  it("shows unavailable on an HTTP 500 response", async () => {
+    const consoleError = silenceConsoleError();
+    mockHealth.httpError(500);
+
+    render(<ApiStatus />);
+
+    expect(
+      await screen.findByText("Backend: Unavailable")
+    ).toBeInTheDocument();
     expect(consoleError).toHaveBeenCalled();
+  });
 
-    consoleError.mockRestore();
+  it("shows unavailable on a network failure", async () => {
+    const consoleError = silenceConsoleError();
+    mockHealth.networkFailure();
+
+    render(<ApiStatus />);
+
+    expect(
+      await screen.findByText("Backend: Unavailable")
+    ).toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalled();
   });
 });
