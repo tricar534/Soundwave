@@ -1,20 +1,47 @@
 name: Soundwave CI
 
+# Run CI for pull requests into main and for changes pushed/merged to main.
 on:
+  workflow_dispatch:
+
   pull_request:
     branches:
       - main
+
   push:
     branches:
       - main
 
+# Unique identifier for each GitHub Actions run.
+# Used to distinguish one Soundwave build from another.
+env:
+  BUILD_VERSION: soundwave-build-${{ github.run_number }}
+
 jobs:
+
+  # Add new CI capabilities as separate top-level jobs when possible.
+  # This keeps checks isolated and reduces merge conflicts between contributors.
+
+  # ------------------------------------------------------------
+  # Repository structure validation
+  # Confirms the expected top-level project folders/files exist
+  # and records the build/commit information for this CI run.
+  # ------------------------------------------------------------
   repository-check:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Display build information
+        run: |
+          echo "Build: $BUILD_VERSION"
+          echo "Commit: $GITHUB_SHA"
+
+          echo "## Soundwave Build Information" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build: $BUILD_VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify project directories
         run: |
@@ -26,7 +53,123 @@ jobs:
       - name: Verify README
         run: test -f README.md
 
-  database-health:
+  # ------------------------------------------------------------
+  # Frontend validation
+  # Installs the exact locked dependencies, then runs linting,
+  # automated frontend tests, and the production Vite build.
+  # ------------------------------------------------------------
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_VERSION }}-frontend
+          path: frontend/dist/
+          if-no-files-found: error
+
+  # ------------------------------------------------------------
+  # Backend validation
+  # Verifies the TypeScript/Express backend can install,
+  # compile, and pass its automated tests.
+  # ------------------------------------------------------------
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_VERSION }}-backend
+          path: backend/dist/
+          if-no-files-found: error
+
+  # ------------------------------------------------------------
+  # Backend lint validation
+  # Runs ESLint independently so code-quality failures are easy
+  # to identify without changing the existing backend CI job.
+  # ------------------------------------------------------------
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: backend
+        run: npm run lint
+
+  # ------------------------------------------------------------
+  # Database validation
+  # Verifies Prisma client generation, schema validity,
+  # migrations, seed data, and database validation tests.
+  # ------------------------------------------------------------
+  database:
+    name: Database CI
     runs-on: ubuntu-latest
 
     services:
@@ -43,6 +186,71 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install database dependencies
+        working-directory: database
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: database
+        run: npm run db:generate
+
+      - name: Validate Prisma schema
+        working-directory: database
+        run: npm run db:validate
+
+      - name: Apply database migrations
+        working-directory: database
+        run: npm run db:deploy
+
+      - name: Verify migration status
+        working-directory: database
+        run: npm run db:status
+
+      - name: Seed test database
+        working-directory: database
+        run: npm run db:seed
+
+      - name: Run database validation tests
+        working-directory: database
+        run: npm run test:db
+
+  # ------------------------------------------------------------
+  # Independent PostgreSQL connectivity check
+  # Provides a simple PASS/FAIL signal that the PostgreSQL
+  # service accepts authenticated SQL connections.
+  # ------------------------------------------------------------
+  database-health:
+    name: Database Health
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Verify PostgreSQL connection
         env:
@@ -50,24 +258,67 @@ jobs:
         run: |
           psql -h localhost -U soundwaves_dev -d soundwaves -c "SELECT 1;"
 
-  backend-lint:
+  # ------------------------------------------------------------
+  # Backend/database integration smoke test
+  # Starts a temporary PostgreSQL service, applies migrations,
+  # builds and starts the backend, then verifies the health endpoint.
+  # ------------------------------------------------------------
+  integration-smoke-test:
+    name: Backend Database Integration Smoke Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+          node-version: 24
+
+      - name: Install database dependencies
+        working-directory: database
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: database
+        run: npm run db:generate
+
+      - name: Apply migrations
+        working-directory: database
+        run: npm run db:deploy
 
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
-      - name: Run ESLint
+      - name: Build backend
         working-directory: backend
-        run: npm run lint
+        run: npm run build
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          node dist/index.js &
+          sleep 3
+
+      - name: Call health endpoint
+        run: curl -f http://localhost:4000/health
