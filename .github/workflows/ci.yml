@@ -100,7 +100,7 @@ jobs:
   # Backend validation
   # Verifies the TypeScript/Express backend can install,
   # compile, and pass its automated tests.
-  # ---------------------------------------- --------------------
+  # -------------------------------------------------------------
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
