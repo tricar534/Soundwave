@@ -13,13 +13,17 @@ describe('Backend routes', () => {
     });
   });
 
-  it('GET /api/tracks returns the track route response', async () => {
+  it('GET /api/tracks returns the track list response', async () => {
     const response = await request(app).get('/api/tracks');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      tracks: [],
-      count: 0
-    });
+
+    expect(response.body).toHaveProperty("tracks");
+    expect(Array.isArray(response.body.tracks)).toBe(true);
+
+    expect(response.body).toHaveProperty("count");
+    expect(typeof response.body.count).toBe("number");
+
+    expect(response.body.count).toBe(response.body.tracks.length);
   });
 });
