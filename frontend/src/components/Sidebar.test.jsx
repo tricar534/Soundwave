@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Sidebar from "./Sidebar";
 
+vi.mock("./ApiStatus", () => ({
+  default: () => <span>Backend: Connected</span>,
+}));
+
 describe("Sidebar", () => {
   it("renders the navigation items", () => {
     render(
