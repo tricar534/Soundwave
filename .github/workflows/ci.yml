@@ -100,7 +100,7 @@ jobs:
   # Backend validation
   # Verifies the TypeScript/Express backend can install,
   # compile, and pass its automated tests.
-  # -------------------------------------------------------------
+  # ------------------------------------------------------------
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
@@ -218,6 +218,17 @@ jobs:
       - name: Verify migration status
         working-directory: database
         run: npm run db:status
+
+      # Verify the required core Soundwave tables were created by migrations.
+      - name: Verify core database schema
+        env:
+          PGPASSWORD: change_me
+        run: |
+          TABLE_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('artists', 'albums', 'tracks', 'genres', 'users');")
+
+          echo "Found $TABLE_COUNT required Soundwave tables"
+
+          test "$TABLE_COUNT" -eq 5
 
       - name: Seed test database
         working-directory: database
