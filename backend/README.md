@@ -27,11 +27,14 @@ Use `npm install` when intentionally adding or updating dependencies.
 
 ### 2. Configure Environment Variables
 
-Create:
+Copy the example environment file from the repository root:
 
-```env
-backend/.env
+```bash
+cd backend
+cp .env.example .env
 ```
+
+Then update `.env` if your local database settings are different.
 
 Example configuration:
 
@@ -46,5 +49,4 @@ DB_NAME=soundwaves
 ```
 
 Do not commit private credentials in `.env`.
-
-The database project has its own environment configuration for Docker, PostgreSQL, and Prisma.
+The `database` project has its own environment configuration for Docker, PostgreSQL, and Prisma.
