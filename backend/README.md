@@ -132,3 +132,75 @@ The current test suite covers:
 - track-list response structure;
 - track ID normalization;
 - track ID validation.
+
+## Backend Overview
+
+The Soundwave backend is built with Node.js, TypeScript, and Express.
+Its current responsibilities include:
+
+- running the Soundwave HTTP API
+- providing backend health status
+- providing the initial track/catalog API structure
+- supporting PostgreSQL connectivity
+- validating and normalizing track identifiers
+- supporting automated backend tests
+
+## Current Technology Stack
+
+- Node.js — backend runtime
+- TypeScript — backend language and type checking
+- Express — API routing and HTTP server
+- PostgreSQL — application database
+- pg — PostgreSQL driver used by the backend
+- dotenv — environment variable loading
+- cors — frontend/backend request support
+- Vitest — automated testing
+- Supertest — API route testing
+- ESLint — linting and code-quality checks
+- tsx — TypeScript development server
+
+The separate database project uses Prisma for schema management, migrations, seeding, and database validation.
+
+## Project Structure
+
+```plain text
+backend/
+├── src/
+│   ├── routes/
+│   │   └── track.routes.ts
+│   ├── utils/
+│   │   ├── normalizeTrackId.ts
+│   │   └── validateTrackId.ts
+│   ├── app.ts
+│   ├── db.ts
+│   └── index.ts
+├── tests/
+│   ├── normalizeTrackId.test.ts
+│   ├── routes.test.ts
+│   └── validateTrackId.test.ts
+├── .env.example
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+## Current Status and Planned Work
+
+Currently implemented:
+
+- Express/TypeScript backend
+- /health endpoint
+- /api/tracks response structure
+- PostgreSQL connection setup
+- track ID normalization and validation
+- Vitest and Supertest coverage
+- ESLint and TypeScript build validation
+
+## Planned Sprint 3 work
+
+- connect track/catalog routes to PostgreSQL
+- return real track data
+- add track detail functionality
+- expand artist and album API functionality
+- add validation and controlled error responses
+- expand backend route testing
