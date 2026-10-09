@@ -1,6 +1,10 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  "http://localhost:3000/api";
+  "http://localhost:4000/api";
+
+const BACKEND_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  "http://localhost:4000";
 
 async function request(endpoint, options = {}) {
   const response = await fetch(
@@ -23,20 +27,18 @@ async function request(endpoint, options = {}) {
   return response.json();
 }
 
-export function getSongs() {
-  return request("/songs");
+export async function getHealth() {
+  const response = await fetch(`${BACKEND_BASE_URL}/health`);
+
+  if (!response.ok) {
+    throw new Error(
+      `Health request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
 }
 
-export function getAlbums() {
-  return request("/albums");
-}
-
-export function getArtists() {
-  return request("/artists");
-}
-
-export function searchCatalog(query) {
-  return request(
-    `/search?q=${encodeURIComponent(query)}`
-  );
+export function getTracks() {
+  return request("/tracks");
 }
