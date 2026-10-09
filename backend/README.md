@@ -1,21 +1,50 @@
 # Soundwave Backend
 
-Backend server for the Soundwave application.
+Backend API server for the Soundwave music streaming application.
 
-## Current Stack
+## Quick Start
+
+### Requirements
+
+Before running the backend, make sure you have:
 
 - Node.js
-- TypeScript
-- Express
-- PostgreSQL
-- Vitest
+- npm
+- PostgreSQL running through the Soundwave database setup
+- the Soundwave repository cloned locally
 
-## Prerequisites
+The backend currently connects to PostgreSQL using the `pg` Node.js package.
 
-Install Node.js and npm before running the backend.
+### 1. Install Dependencies
 
-Verify installation:
+From the `backend` directory:
 
 ```bash
-node -v
-npm -v
+npm ci
+```
+
+Use `npm install` when intentionally adding or updating dependencies.
+
+### 2. Configure Environment Variables
+
+Create:
+
+```env
+backend/.env
+```
+
+Example configuration:
+
+```env
+PORT=4000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=soundwaves_dev
+DB_PASSWORD=change_me
+DB_NAME=soundwaves
+```
+
+Do not commit private credentials in `.env`.
+
+The database project has its own environment configuration for Docker, PostgreSQL, and Prisma.
