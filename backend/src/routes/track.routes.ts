@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isValidPostgresTrackId } from '../utils/validateTrackId';
 import { 
   getCatalogTracks, 
   getTrackById,
@@ -32,17 +33,13 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
 
   // Validate ID is a positive PostgreSQL BigInt.
-  // 9223372036854775807 is the maximum signed 64-bit BIGINT.
-  if (
-    typeof id !== 'string' ||
-    !/^[1-9]\d{0,18}$/.test(id) ||
-    BigInt(id) > 9223372036854775807n
-  ) {
-    res.status(400).json({
-      error: 'Invalid track ID',
-    });
-    return;
-  }
+  
+  if (!isValidPostgresTrackId(id)) {
+  res.status(400).json({
+    error: 'Invalid track ID',
+  });
+  return;
+}
 
   try {
     // Retrieve the track through the service.
