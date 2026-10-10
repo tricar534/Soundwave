@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db';
+import { getCatalogTracks } from '../services/track.service';
 
 const router = Router();
 
@@ -7,24 +8,12 @@ const router = Router();
 router.get('/', async (req, res) => {
   try{
     // Retrieve tracks from PostgreSQL
-    const result = await pool.query(
-      ` 
-      SELECT
-        id::text AS id,
-        album_id::text AS "albumId",
-        title,
-        track_number AS "trackNumber",
-        duration_ms AS "durationMs",
-        is_available AS "isAvailable"
-      FROM tracks
-      ORDER BY id ASC      
-      `
-    );
+    const tracks = await getCatalogTracks();
 
     // Return the catalog tracks and total retrieved.
     res.status(200).json({
-      tracks: result.rows,
-      count: result.rows.length,
+      tracks,
+      count: tracks.length,
     });
   } catch (error) {
     console.error('Failed to retrieve tracks:', error);
