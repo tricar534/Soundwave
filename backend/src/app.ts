@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import trackRoutes from './routes/track.routes';
+import searchRoutes from './routes/search.routes'
 
 const app = express();
 
@@ -12,5 +13,6 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/tracks', trackRoutes);
+app.use('/api/search', searchRoutes);
 
 export default app;
