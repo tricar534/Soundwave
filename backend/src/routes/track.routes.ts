@@ -3,15 +3,36 @@ import { pool } from '../db';
 
 const router = Router();
 
-// Existing catalog route
-router.get('/', (req, res) => {
-  const tracks: unknown[] = [];
+// Retrieve all catalog tracks.
+router.get('/', async (req, res) => {
+  try{
+    // Retrieve tracks from PostgreSQL
+    const result = await pool.query(
+      ` 
+      SELECT
+        id::text AS id,
+        album_id::text AS "albumId",
+        title,
+        track_number AS "trackNumber",
+        duration_ms AS "durationMs",
+        is_available AS "isAvailable"
+      FROM tracks
+      ORDER BY id ASC      
+      `
+    );
 
-  res.json({
-    tracks,
-    count: tracks.length,
-  });
-  
+    // Return the catalog tracks and total retrieved.
+    res.status(200).json({
+      tracks: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Failed to retrieve tracks:', error);
+
+    res.status(500).json({
+      error: 'Internal server error',
+    });
+  }
 });
 
 // Retrieve an individual track by ID.
@@ -42,27 +63,26 @@ router.get('/:id', async ( req, res ) => {
         WHERE id = $1::bigint
         LIMIT 1 `,
         [id]
-    );
+      );
     
-    // Track does not exist.
-    if (result.rows.length === 0) {
-      res.status(404).json({
-        error: 'Track not found',
+      // Track does not exist.
+      if (result.rows.length === 0) {
+        res.status(404).json({
+          error: 'Track not found',
+        });
+        return;
+      }
+  
+      // Track found successfully.
+      res.status(200).json({
+        track: result.rows[0],
+        });
+    } catch (error) {
+      console.error('Failed to retrieve track:', error);
+      res.status(500).json({
+        error: 'Internal server error',
       });
-      return;
     }
-    
-    // Track found successfully.
-    res.status(200).json({
-      track: result.rows[0],
-      });
-    } 
-    catch (error) {
-    console.error('Failed to retrieve track:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-    });
-  }
 });
 
 export default router;
