@@ -19,3 +19,24 @@ export async function getCatalogTracks() {
 
   return result.rows;
 }
+
+// Retrieve an individual track from PostgreSQL by ID.
+export async function getTrackById(id: string) {
+  const result = await pool.query(
+    `
+    SELECT
+      id::text AS id,
+      album_id::text AS "albumId",
+      title,
+      track_number AS "trackNumber",
+      duration_ms AS "durationMs",
+      is_available AS "isAvailable"
+    FROM tracks
+    WHERE id = $1::bigint
+    LIMIT 1
+    `,
+    [id]
+  );
+
+  return result.rows[0] ?? null;
+}
