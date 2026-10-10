@@ -14,11 +14,12 @@ vi.mock('../src/db', () => ({
 }));
 
 describe('Backend routes', () => {
+  // Reset database mock before test.
   beforeEach(() => {
     mockQuery.mockReset();
   });
 
-  // Health endpoint
+  // Test 1: Health endpoint
   it('GET /health returns backend health status', async () => {
     const response = await request(app).get('/health');
 
@@ -29,28 +30,38 @@ describe('Backend routes', () => {
     });
   });
 
-  // Track-list response contract.
+  // Test 2: Track-list response and empty catalog.
   it('GET /api/tracks returns the track list response', async () => {
+    // Simulate database with no tracks.
     mockQuery.mockResolvedValue({
       rows: [],
     });
 
     const response = await request(app).get('/api/tracks');
 
+    // Confirm successful http response
     expect(response.status).toBe(200);
 
+    // Confirm tracks is an array
     expect(response.body).toHaveProperty("tracks");
     expect(Array.isArray(response.body.tracks)).toBe(true);
 
+    // Confirm count is a number matching the array length.
     expect(response.body).toHaveProperty("count");
     expect(typeof response.body.count).toBe("number");
-
     expect(response.body.count).toBe(response.body.tracks.length);
+
+    // Confirm an empty catalog returns the expected JSON.
+    expect( response.body).toEqual({
+      tracks: [],
+      count: 0,
+    });
   });
 
 
- // Verify multiple track records returned by a mocked database query.
+ // Test 3: Verify multiple track records returned by a mocked database query.
   it('returns multiple tracks from PostgreSQL query results', async () => {
+    // Simulate two existing tracks in PostgreSQL.
     const tracks = [
       {
         id: '17',
@@ -69,19 +80,25 @@ describe('Backend routes', () => {
         isAvailable: true,
       },
     ];
+    
 
+    // Make database mock return both tracks.
     mockQuery.mockResolvedValue({
       rows: tracks,
     });
 
     const response = await request(app).get('/api/tracks');
 
+    // Confirm successful http response
     expect(response.status).toBe(200);
+
+    // Confirm the returned tracks and count.
     expect(response.body).toEqual({
       tracks,
       count: 2,
     });
 
+    // Confirm database was queried exactly once.
     expect(mockQuery).toHaveBeenCalledTimes(1);
     });
   });
