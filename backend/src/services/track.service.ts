@@ -40,3 +40,25 @@ export async function getTrackById(id: string) {
 
   return result.rows[0] ?? null;
 }
+
+ // Search PostgreSQL tracks by title.
+export async function searchTracks(query: string) {
+  const result = await pool.query(
+    `
+    SELECT
+      id::text AS id,
+      album_id::text AS "albumId",
+      title,
+      track_number AS "trackNumber",
+      duration_ms AS "durationMs",
+      is_available AS "isAvailable"
+    FROM tracks
+    WHERE title ILIKE $1
+    ORDER BY title ASC, id ASC
+    LIMIT 50
+    `,
+    [`%${query}%`]
+  );
+
+  return result.rows;
+}
