@@ -1,6 +1,6 @@
 
 import { Router } from 'express';
-import { pool } from '../db';
+import { searchTracks } from '../services/track.service';
 
 const router = Router();
 
@@ -21,30 +21,14 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    // Search PostgreSQL for matching track titles.
-    const result = await pool.query(
-      `
-      SELECT
-        id::text AS id,
-        album_id::text AS "albumId",
-        title,
-        track_number AS "trackNumber",
-        duration_ms AS "durationMs",
-        is_available AS "isAvailable"
-      FROM tracks
-      WHERE title ILIKE $1
-      ORDER BY title ASC, id ASC
-      LIMIT 50
-      `,
-      [`%${query.trim()}%`]
-    );
+    // Search tracks through the reusable service.
+    const tracks = await searchTracks(query.trim());
 
     // Return matching tracks.
     res.status(200).json({
-      tracks: result.rows,
-      count: result.rows.length,
+      tracks,
+      count: tracks.length,
     });
-
   } catch (error) {
     console.error('Failed to search tracks:', error);
 
