@@ -1,3 +1,5 @@
+import ApiStatus from "./ApiStatus";
+
 const navigationItems = [
   {
     id: "home",
@@ -33,7 +35,7 @@ function Sidebar({ currentPage, onNavigate }) {
                 }
                 onClick={() => onNavigate(item.id)}
                 aria-current={
-                  currentPage == item.id ? "page" : undefined
+                  currentPage === item.id ? "page" : undefined
                 }
               >
                 {item.label}
@@ -44,6 +46,10 @@ function Sidebar({ currentPage, onNavigate }) {
       </nav>
 
       <div className="sidebar-bottom">
+          <div className="sidebar-status">
+            <ApiStatus />
+          </div>
+
         <button type="button" className="nav-button">
           Settings
         </button>

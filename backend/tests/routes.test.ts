@@ -13,7 +13,7 @@ describe('Backend routes', () => {
     });
   });
 
-  it('GET /api/tracks returns the track route response', async () => {
+  it('GET /api/tracks returns the track list response', async () => {
     const response = await request(app).get('/api/tracks');
 
     expect(response.status).toBe(200);
