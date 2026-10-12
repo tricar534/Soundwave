@@ -1,1 +1,4 @@
 .env
+
+# SW-209 generated test reports
+reports/
