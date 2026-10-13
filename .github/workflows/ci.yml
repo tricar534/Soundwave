@@ -1,5 +1,6 @@
 name: Soundwave CI
 
+# Run CI for pull requests into main and for changes pushed/merged to main.
 on:
   workflow_dispatch:
 
@@ -11,11 +12,21 @@ on:
     branches:
       - main
 
+# Unique identifier for each GitHub Actions run.
+# Used to distinguish one Soundwave build from another.
 env:
   BUILD_VERSION: soundwave-build-${{ github.run_number }}
 
 jobs:
 
+  # Add new CI capabilities as separate top-level jobs when possible.
+  # This keeps checks isolated and reduces merge conflicts between contributors.
+
+  # ------------------------------------------------------------
+  # Repository structure validation
+  # Confirms the expected top-level project folders/files exist
+  # and records the build/commit information for this CI run.
+  # ------------------------------------------------------------
   repository-check:
     runs-on: ubuntu-latest
 
@@ -42,7 +53,11 @@ jobs:
       - name: Verify README
         run: test -f README.md
 
-
+  # ------------------------------------------------------------
+  # Frontend validation
+  # Installs the exact locked dependencies, then runs linting,
+  # automated frontend tests, and the production Vite build.
+  # ------------------------------------------------------------
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
@@ -55,10 +70,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
+        run: npm ci
 
       - name: Lint frontend
         working-directory: frontend
@@ -79,7 +96,11 @@ jobs:
           path: frontend/dist/
           if-no-files-found: error
 
-
+  # ------------------------------------------------------------
+  # Backend validation
+  # Verifies the TypeScript/Express backend can install,
+  # compile, and pass its automated tests.
+  # ------------------------------------------------------------
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
@@ -92,10 +113,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
 
       - name: Build backend
         working-directory: backend
@@ -112,7 +135,39 @@ jobs:
           path: backend/dist/
           if-no-files-found: error
 
+  # ------------------------------------------------------------
+  # Backend lint validation
+  # Runs ESLint independently so code-quality failures are easy
+  # to identify without changing the existing backend CI job.
+  # ------------------------------------------------------------
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: backend
+        run: npm run lint
+
+  # ------------------------------------------------------------
+  # Database validation
+  # Verifies Prisma client generation, schema validity,
+  # migrations, seed data, and database validation tests.
+  # ------------------------------------------------------------
   database:
     name: Database CI
     runs-on: ubuntu-latest
@@ -133,11 +188,28 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # SW-141: Verify PostgreSQL readiness before Prisma operations
+      - name: Verify PostgreSQL readiness and connectivity
+        env:
+          PGPASSWORD: change_me
+        run: |
+          set -e
+
+          echo "Checking PostgreSQL readiness..."
+          pg_isready -h localhost -p 5432 -U soundwaves_dev -d soundwaves
+
+          echo "Verifying authenticated database connection..."
+          psql -h localhost -U soundwaves_dev -d soundwaves \
+            -v ON_ERROR_STOP=1 \
+            -c "SELECT current_database(), current_user;"
+
+          echo "PostgreSQL readiness and connectivity verified."
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -164,7 +236,71 @@ jobs:
         working-directory: database
         run: npm run db:status
 
-      - name: Seed database
+      - name: Verify core database schema and relationships
+        env:
+          PGPASSWORD: change_me
+        run: |
+          set -e
+
+          echo "Checking required Soundwave tables..."
+
+          TABLE_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name IN (
+                'artists',
+                'albums',
+                'tracks',
+                'genres',
+                'users',
+                'media_files',
+                'track_artists',
+                'album_artists',
+                'track_genres',
+                'roles',
+                'sessions',
+                'artwork'
+              );
+          ")
+
+          echo "Found $TABLE_COUNT of 12 required tables"
+          test "$TABLE_COUNT" -eq 12
+
+          echo "Checking required foreign-key relationships..."
+
+          FK_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "
+            SELECT COUNT(*)
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+              ON tc.constraint_name = kcu.constraint_name
+              AND tc.constraint_schema = kcu.constraint_schema
+            JOIN information_schema.constraint_column_usage ccu
+              ON tc.constraint_name = ccu.constraint_name
+              AND tc.constraint_schema = ccu.constraint_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = 'public'
+              AND (
+                (tc.table_name = 'media_files'
+                 AND kcu.column_name = 'track_id'
+                 AND ccu.table_name = 'tracks')
+                OR
+                (tc.table_name = 'tracks'
+                 AND kcu.column_name = 'album_id'
+                 AND ccu.table_name = 'albums')
+                OR
+                (tc.table_name = 'users'
+                 AND kcu.column_name = 'role_id'
+                 AND ccu.table_name = 'roles')
+              );
+          ")
+
+          echo "Found $FK_COUNT of 3 required relationships"
+          test "$FK_COUNT" -eq 3
+
+          echo "Soundwave database structure validation passed."
+
+      - name: Seed test database
         working-directory: database
         run: npm run db:seed
 
@@ -172,8 +308,18 @@ jobs:
         working-directory: database
         run: npm run test:db
 
+      - name: Verify migration reproducibility
+        env:
+          PGPASSWORD: change_me
+        run: bash database/tests/migration-reproducibility.sh
 
+  # ------------------------------------------------------------
+  # Independent PostgreSQL connectivity check
+  # Provides a simple PASS/FAIL signal that the PostgreSQL
+  # service accepts authenticated SQL connections.
+  # ------------------------------------------------------------
   database-health:
+    name: Database Health
     runs-on: ubuntu-latest
 
     services:
@@ -197,3 +343,68 @@ jobs:
           PGPASSWORD: change_me
         run: |
           psql -h localhost -U soundwaves_dev -d soundwaves -c "SELECT 1;"
+
+  # ------------------------------------------------------------
+  # Backend/database integration smoke test
+  # Starts a temporary PostgreSQL service, applies migrations,
+  # builds and starts the backend, then verifies the health endpoint.
+  # ------------------------------------------------------------
+  integration-smoke-test:
+    name: Backend Database Integration Smoke Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: soundwaves
+          POSTGRES_USER: soundwaves_dev
+          POSTGRES_PASSWORD: change_me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U soundwaves_dev -d soundwaves"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install database dependencies
+        working-directory: database
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: database
+        run: npm run db:generate
+
+      - name: Apply migrations
+        working-directory: database
+        run: npm run db:deploy
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          node dist/index.js &
+          sleep 3
+
+      - name: Call health endpoint
+        run: curl -f http://localhost:4000/health
