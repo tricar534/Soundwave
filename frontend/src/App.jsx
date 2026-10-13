@@ -8,18 +8,19 @@ import "./styles/app.css";
 
 function App() {
   const [currentPage, setCurrentPage] = useState("home");
+  const [currentTrack, setCurrentTrack] = useState(null);
 
   function renderPage() {
     switch (currentPage) {
       case "search":
-        return <SearchPage />;
+        return <SearchPage onSelectTrack={setCurrentTrack} />;
 
       case "library":
         return <LibraryPage />;
 
       case "home":
       default:
-        return <HomePage />;
+        return <HomePage onSelectTrack={setCurrentTrack} />;
     }
   }
 
@@ -34,7 +35,7 @@ function App() {
         {renderPage()}
       </main>
 
-      <PlaybackBar />
+      <PlaybackBar currentTrack={currentTrack} />
     </div>
   );
 }
