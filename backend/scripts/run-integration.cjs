@@ -74,8 +74,23 @@ async function main() {
 
   console.log('[SW-203] PostgreSQL ready. Running SW-132 integration tests...');
   // package.json already provides "test": "vitest run".
+  // Optional SW-209 reporting: normal SW-203 runs remain unchanged.
+  const args = ['test', '--', testFile];
+  const jsonFile = process.env.SW209_JSON_REPORT;
+  const junitFile = process.env.SW209_JUNIT_REPORT;
+  if (jsonFile || junitFile) {
+    if (!jsonFile || !junitFile || !path.isAbsolute(jsonFile) || !path.isAbsolute(junitFile)) {
+      fail('SW-209 reporting requires absolute SW209_JSON_REPORT and SW209_JUNIT_REPORT paths.');
+      return;
+    }
+    args.push(
+      '--reporter=default', '--reporter=json', '--reporter=junit',
+      `--outputFile.json=${jsonFile}`,
+      `--outputFile.junit=${junitFile}`,
+    );
+  }
   const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const result = spawnSync(command, ['test', '--', testFile], {
+  const result = spawnSync(command, args, {
     cwd: backendDir,
     stdio: 'inherit',
     env: { ...process.env, RUN_DB_INTEGRATION: '1' },

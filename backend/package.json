@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "ci:integration": "node scripts/run-integration.cjs",
     "ci:integration:env": "node scripts/run-integration-env.cjs",
-    "ci:integration:env:check": "node scripts/run-integration-env.cjs --check"
+    "ci:integration:env:check": "node scripts/run-integration-env.cjs --check",
+    "ci:integration:report": "node scripts/run-integration-report.cjs"
   },
   "keywords": [],
   "author": "",
