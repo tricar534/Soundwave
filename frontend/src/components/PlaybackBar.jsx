@@ -1,12 +1,19 @@
 import { useState } from "react";
 
-function PlaybackBar() {
+const noTrackSelected = {
+  title: "No track selected",
+  artist: "Soundwave",
+};
+
+function PlaybackBar({ currentTrack }) {
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const currentTrack = {
-    title: "No track selected",
-    artist: "Soundwave",
-  };
+  const trackToDisplay = currentTrack
+    ? {
+        title: currentTrack.title,
+        artist: currentTrack.subtitle,
+      }
+    : noTrackSelected;
 
   return (
     <footer className="playback-bar">
@@ -14,8 +21,8 @@ function PlaybackBar() {
         <div className="track-placeholder" />
 
         <div>
-          <strong>{currentTrack.title}</strong>
-          <p>{currentTrack.artist}</p>
+          <strong>{trackToDisplay.title}</strong>
+          <p>{trackToDisplay.artist}</p>
         </div>
       </div>
 

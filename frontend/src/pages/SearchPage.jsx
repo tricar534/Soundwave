@@ -69,7 +69,7 @@ const mockSongs = [
 },
 ];
 
-function SearchPage() {
+function SearchPage({ onSelectTrack }) {
   const [query, setQuery] = useState("");
   const [songs, setSongs] = useState(mockSongs);
   const [catalogStatus, setCatalogStatus] = useState("loading");
@@ -145,6 +145,11 @@ function SearchPage() {
             subtitle={song.subtitle}
             image={song.image}
             type={song.type}
+            onSelect={() => {
+              if (song.type === "Song" && onSelectTrack) {
+                onSelectTrack(song);
+              }
+            }}
           />
         ))}
       </div>
