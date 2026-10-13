@@ -2,13 +2,18 @@ import express from 'express';
 import cors from 'cors';
 import trackRoutes from './routes/track.routes';
 import readinessRoutes from './routes/readiness.routes';
-import searchRoutes from './routes/search.routes'
+import { requestDiagnostics } from './middleware/requestDiagnostics';
+import searchRoutes from './routes/search.routes';
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Request diagnostics middleware
+// Tracks request IDs, HTTP methods, paths, status codes, and duration
+app.use(requestDiagnostics);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
