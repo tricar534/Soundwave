@@ -10,7 +10,9 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "lint": "eslint .",
-    "ci:integration": "node scripts/run-integration.cjs"
+    "ci:integration": "node scripts/run-integration.cjs",
+    "ci:integration:env": "node scripts/run-integration-env.cjs",
+    "ci:integration:env:check": "node scripts/run-integration-env.cjs --check"
   },
   "keywords": [],
   "author": "",
