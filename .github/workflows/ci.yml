@@ -257,7 +257,6 @@ jobs:
           echo "Soundwave migration deployment verification passed."
 
       # Verify the required core Soundwave tables were created by migrations.
-      - name: Verify core database schema
       - name: Verify core database schema and relationships
         env:
           PGPASSWORD: change_me
