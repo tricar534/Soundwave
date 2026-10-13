@@ -238,7 +238,7 @@ jobs:
         working-directory: database
         run: npm run test:db
 
-       - name: Verify migration reproducibility
+      - name: Verify migration reproducibility
         env:
           PGPASSWORD: change_me
         run: bash database/tests/migration-reproducibility.sh
