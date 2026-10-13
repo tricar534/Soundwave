@@ -1,20 +1,6 @@
-#!/usr/bin/env node
-'use strict';
-/* global process, console, require, __dirname */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* global require, process, console, __dirname */
 
-/**
- * SW-207 - Reproducible, test-only environment for Role E's SW-203 runner.
- *
- * From backend/:
- *   npm run ci:integration:env:check  # configuration validation only
- *   npm run ci:integration:env        # validation + existing SW-203 runner
- *
- * Local: load backend/.env.integration.local (gitignored).
- * CI:    supply the same variables as job environment variables.
- *
- * This file does not define test cases, run migrations/seed data, or modify
- * .github/workflows/ci.yml. SW-203 remains the test execution owner.
- */
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
