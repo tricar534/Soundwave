@@ -194,6 +194,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # SW-141: Verify PostgreSQL readiness before Prisma operations
+      - name: Verify PostgreSQL readiness and connectivity
+        env:
+          PGPASSWORD: change_me
+        run: |
+          set -e
+
+          echo "Checking PostgreSQL readiness..."
+          pg_isready -h localhost -p 5432 -U soundwaves_dev -d soundwaves
+
+          echo "Verifying authenticated database connection..."
+          psql -h localhost -U soundwaves_dev -d soundwaves \
+            -v ON_ERROR_STOP=1 \
+            -c "SELECT current_database(), current_user;"
+
+          echo "PostgreSQL readiness and connectivity verified."
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -211,6 +228,7 @@ jobs:
         working-directory: database
         run: npm run db:validate
 
+      # SW-142: Apply and verify Prisma migrations
       - name: Apply database migrations
         working-directory: database
         run: npm run db:deploy
@@ -219,16 +237,86 @@ jobs:
         working-directory: database
         run: npm run db:status
 
+      - name: Verify migration deployment is repeatable
+        working-directory: database
+        run: |
+          set -e
+
+          echo "Re-running Prisma migration deployment..."
+
+          npm run db:deploy
+
+          echo "Verifying final migration status..."
+
+          npm run db:status
+
+          echo "Soundwave migration deployment verification passed."
+
       # Verify the required core Soundwave tables were created by migrations.
       - name: Verify core database schema
+      - name: Verify core database schema and relationships
         env:
           PGPASSWORD: change_me
         run: |
-          TABLE_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('artists', 'albums', 'tracks', 'genres', 'users');")
+          set -e
 
-          echo "Found $TABLE_COUNT required Soundwave tables"
+          echo "Checking required Soundwave tables..."
 
-          test "$TABLE_COUNT" -eq 5
+          TABLE_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name IN (
+                'artists',
+                'albums',
+                'tracks',
+                'genres',
+                'users',
+                'media_files',
+                'track_artists',
+                'album_artists',
+                'track_genres',
+                'roles',
+                'sessions',
+                'artwork'
+              );
+          ")
+
+          echo "Found $TABLE_COUNT of 12 required tables"
+          test "$TABLE_COUNT" -eq 12
+
+          echo "Checking required foreign-key relationships..."
+
+          FK_COUNT=$(psql -h localhost -U soundwaves_dev -d soundwaves -tAc "
+            SELECT COUNT(*)
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+              ON tc.constraint_name = kcu.constraint_name
+              AND tc.constraint_schema = kcu.constraint_schema
+            JOIN information_schema.constraint_column_usage ccu
+              ON tc.constraint_name = ccu.constraint_name
+              AND tc.constraint_schema = ccu.constraint_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+              AND tc.table_schema = 'public'
+              AND (
+                (tc.table_name = 'media_files'
+                 AND kcu.column_name = 'track_id'
+                 AND ccu.table_name = 'tracks')
+                OR
+                (tc.table_name = 'tracks'
+                 AND kcu.column_name = 'album_id'
+                 AND ccu.table_name = 'albums')
+                OR
+                (tc.table_name = 'users'
+                 AND kcu.column_name = 'role_id'
+                 AND ccu.table_name = 'roles')
+              );
+          ")
+
+          echo "Found $FK_COUNT of 3 required relationships"
+          test "$FK_COUNT" -eq 3
+
+          echo "Soundwave database structure validation passed."
 
       - name: Seed test database
         working-directory: database
@@ -237,6 +325,11 @@ jobs:
       - name: Run database validation tests
         working-directory: database
         run: npm run test:db
+
+      - name: Verify migration reproducibility
+        env:
+          PGPASSWORD: change_me
+        run: bash database/tests/migration-reproducibility.sh
 
   # ------------------------------------------------------------
   # Independent PostgreSQL connectivity check
@@ -333,3 +426,55 @@ jobs:
 
       - name: Call health endpoint
         run: curl -f http://localhost:4000/health
+
+
+
+  # ------------------------------------------------------------
+  # SW-184: CI validation summary and failure reporting
+  # Reports required job outcomes even when an earlier job fails.
+  # ------------------------------------------------------------
+  ci-validation-summary:
+    name: CI Validation Summary
+    runs-on: ubuntu-latest
+
+    needs:
+      - repository-check
+      - frontend
+      - backend
+      - backend-lint
+      - database
+      - database-health
+      - integration-smoke-test
+
+    if: ${{ always() }}
+
+    steps:
+      - name: Report CI validation results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        shell: bash
+        run: |
+          echo "## Soundwave CI Validation Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CI Job | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "$NEEDS_JSON" | jq -r '
+            to_entries[] |
+            "| \(.key) | \(.value.result) |"
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build: $BUILD_VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+          if echo "$NEEDS_JSON" | jq -e '
+            any(.[]; .result != "success")
+          ' > /dev/null; then
+            echo "❌ One or more required CI jobs did not succeed." >> "$GITHUB_STEP_SUMMARY"
+            echo "One or more required CI jobs did not succeed."
+            exit 1
+          fi
+
+          echo "✅ All required CI jobs passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "All required CI jobs passed."

@@ -3,6 +3,7 @@ import cors from 'cors';
 import trackRoutes from './routes/track.routes';
 import readinessRoutes from './routes/readiness.routes';
 import { requestDiagnostics } from './middleware/requestDiagnostics';
+import searchRoutes from './routes/search.routes';
 
 const app = express();
 
@@ -28,5 +29,6 @@ app.use('/ready', readinessRoutes);
 
 // Track API routes
 app.use('/api/tracks', trackRoutes);
+app.use('/api/search', searchRoutes);
 
 export default app;
