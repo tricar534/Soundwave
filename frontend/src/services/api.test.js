@@ -12,7 +12,7 @@ describe("services/api.js", () => {
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    global.fetch = fetchMock;
+    globalThis.fetch = fetchMock;
     vi.resetModules();
     vi.unstubAllEnvs();
   });
