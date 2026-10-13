@@ -211,6 +211,7 @@ jobs:
         working-directory: database
         run: npm run db:validate
 
+      # SW-142: Apply and verify Prisma migrations
       - name: Apply database migrations
         working-directory: database
         run: npm run db:deploy
@@ -218,6 +219,21 @@ jobs:
       - name: Verify migration status
         working-directory: database
         run: npm run db:status
+
+      - name: Verify migration deployment is repeatable
+        working-directory: database
+        run: |
+          set -e
+
+          echo "Re-running Prisma migration deployment..."
+
+          npm run db:deploy
+
+          echo "Verifying final migration status..."
+
+          npm run db:status
+
+          echo "Soundwave migration deployment verification passed."
 
       # Verify the required core Soundwave tables were created by migrations.
       - name: Verify core database schema
