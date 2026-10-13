@@ -219,8 +219,6 @@ jobs:
         working-directory: database
         run: npm run db:status
 
-      # Verify required Soundwave tables and foreign-key relationships.      
-
       - name: Verify core database schema and relationships
         env:
           PGPASSWORD: change_me
