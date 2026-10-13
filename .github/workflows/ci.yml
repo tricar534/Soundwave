@@ -194,6 +194,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # SW-141: Verify PostgreSQL readiness before Prisma operations
+      - name: Verify PostgreSQL readiness and connectivity
+        env:
+          PGPASSWORD: change_me
+        run: |
+          set -e
+
+          echo "Checking PostgreSQL readiness..."
+          pg_isready -h localhost -p 5432 -U soundwaves_dev -d soundwaves
+
+          echo "Verifying authenticated database connection..."
+          psql -h localhost -U soundwaves_dev -d soundwaves \
+            -v ON_ERROR_STOP=1 \
+            -c "SELECT current_database(), current_user;"
+
+          echo "PostgreSQL readiness and connectivity verified."
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
