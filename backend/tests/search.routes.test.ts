@@ -56,4 +56,56 @@ describe('GET /api/search', () => {
 
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  // Test 3: Reject an empty search query.
+  it('returns 400 for an empty search query', async () => {
+    const response = await request(app).get('/api/search?q=');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'Search query must be between 1 and 100 characters',
+    });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  // Test 4: Reject whitespace-only search queries.
+  it('returns 400 for a whitespace-only search query', async () => {
+    const response = await request(app).get('/api/search?q=%20%20%20');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'Search query must be between 1 and 100 characters',
+    });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  // Test 5: Reject queries exceeding the maximum length.
+  it('returns 400 for a search query over 100 characters', async () => {
+    const longQuery = 'a'.repeat(101);
+
+    const response = await request(app)
+      .get('/api/search')
+      .query({ q: longQuery });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'Search query must be between 1 and 100 characters',
+    });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  // Test 6: Handle PostgreSQL query failures safely.
+  it('returns 500 when the database search fails', async () => {
+    mockQuery.mockRejectedValue(new Error('Database connection failed'));
+
+    const response = await request(app).get('/api/search?q=midnight');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'Internal server error',
+    });
+    expect(response.text).not.toContain('Database connection failed');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
 });
