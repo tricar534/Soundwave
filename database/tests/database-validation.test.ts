@@ -269,4 +269,43 @@ describe("Soundwaves database validation", () => {
       `;
     }
   });
+  // Sprint 3 - SW-140: Database Constraint Validation
+
+  test("track number must be positive when provided", async () => {
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO tracks
+          (title, track_number, duration_ms, is_available, created_at, updated_at)
+        VALUES
+          ('Invalid Track Number Test', 0, 180000, TRUE, NOW(), NOW())
+      `;
+    });
+  });
+
+  test("media file size must be positive", async () => {
+    const track = await prisma.track.create({
+      data: {
+        title: "Media Size Constraint Test",
+        durationMs: 180000,
+      },
+    });
+
+    try {
+      await assert.rejects(async () => {
+        await prisma.mediaFile.create({
+          data: {
+            trackId: track.id,
+            filePath: `/test/invalid-size-${track.id}.flac`,
+            fileName: "invalid-size.flac",
+            mediaType: "audio/flac",
+            fileSize: 0n,
+          },
+        });
+      });
+    } finally {
+      await prisma.track.delete({
+        where: { id: track.id },
+      });
+    }
+  });
 });
