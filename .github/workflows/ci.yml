@@ -52,11 +52,6 @@ jobs:
 
       - name: Verify README
         run: test -f README.md
-
-      - name: SW-185 intentional CI failure (temporary)
-        run: exit 1
-
-
   # ------------------------------------------------------------
   # Frontend validation
   # Installs the exact locked dependencies, then runs linting,
