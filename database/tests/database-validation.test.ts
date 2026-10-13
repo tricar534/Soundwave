@@ -269,4 +269,110 @@ describe("Soundwaves database validation", () => {
       `;
     }
   });
+
+  // --------------------------------------------------
+  // Sprint 3 - SW-140: Database Constraint Validation
+  // --------------------------------------------------
+
+  test("track number must be positive when provided", async () => {
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO tracks
+          (title, track_number, duration_ms, is_available, created_at, updated_at)
+        VALUES
+          ('Invalid Track Number Test', 0, 180000, TRUE, NOW(), NOW())
+      `;
+    });
+  });
+
+  test("media file size must be positive", async () => {
+    const track = await prisma.track.create({
+      data: {
+        title: "Media Size Constraint Test",
+        durationMs: 180000,
+      },
+    });
+
+    try {
+      await assert.rejects(async () => {
+        await prisma.mediaFile.create({
+          data: {
+            trackId: track.id,
+            filePath: `/test/invalid-size-${track.id}.flac`,
+            fileName: "invalid-size.flac",
+            mediaType: "audio/flac",
+            fileSize: 0n,
+          },
+        });
+      });
+    } finally {
+      await prisma.track.delete({
+        where: { id: track.id },
+      });
+    }
+  });
+
+  // --------------------------------------------------
+  // Sprint 3 - Role C: Seed Data Integrity Tests
+  // --------------------------------------------------
+
+  test("seeded tracks have valid artist relationships", async () => {
+    const result = await prisma.$queryRaw<
+      Array<{
+        total_tracks: bigint;
+        missing_artists: bigint;
+      }>
+    >`
+      SELECT
+        COUNT(*) AS total_tracks,
+        COUNT(*) FILTER (
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM track_artists ta
+            WHERE ta.track_id = t.id
+          )
+        ) AS missing_artists
+      FROM tracks t
+    `;
+
+    assert.ok(
+      Number(result[0].total_tracks) > 0,
+      "Seeded database should contain tracks"
+    );
+
+    assert.equal(
+      Number(result[0].missing_artists),
+      0,
+      "Every seeded track should have an associated artist"
+    );
+  });
+
+  test("seeded media files reference existing tracks", async () => {
+    const result = await prisma.$queryRaw<
+      Array<{
+        total_media_files: bigint;
+        invalid_media_files: bigint;
+      }>
+    >`
+      SELECT
+        COUNT(*) AS total_media_files,
+        COUNT(*) FILTER (
+          WHERE t.id IS NULL
+        ) AS invalid_media_files
+      FROM media_files mf
+      LEFT JOIN tracks t ON t.id = mf.track_id
+    `;
+
+    assert.ok(
+      Number(result[0].total_media_files) > 0,
+      "Seeded database should contain media files"
+    );
+
+    assert.equal(
+      Number(result[0].invalid_media_files),
+      0,
+      "Every seeded media file should reference an existing track"
+    );
+  });
 });
+

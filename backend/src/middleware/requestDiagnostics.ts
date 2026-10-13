@@ -21,7 +21,12 @@ export function requestDiagnostics(
   next: NextFunction
 ): void {
 
-  const requestId = randomUUID();
+ const incomingId = req.get('X-Request-ID');
+
+  const requestId =
+  incomingId && /^[a-zA-Z0-9_-]{1,128}$/.test(incomingId)
+    ? incomingId
+    : randomUUID();
 
   const startTime = process.hrtime.bigint();
 
