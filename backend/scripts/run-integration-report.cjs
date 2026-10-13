@@ -1,15 +1,6 @@
-#!/usr/bin/env node
-'use strict';
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* global require, process, console, __dirname */
 
-/**
- * SW-209 - Role E integration result generation for CI.
- *
- * Run from backend/:
- *   npm run ci:integration:report
- *
- * Invokes SW-207 (environment verification) -> SW-203 (test runner) ->
- * Vitest JSON/JUnit reporters. Does not change test assertions or GitHub Actions.
- */
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
