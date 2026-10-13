@@ -103,7 +103,7 @@ function mapTrackToCard(track) {
   };
 }
 
-function HomePage() {
+function HomePage({ onSelectTrack }) {
   const [recentlyPlayed, setRecentlyPlayed] = useState(sampleRecentlyPlayed);
   const [recommended, setRecommended] = useState(sampleRecommended);
   const [madeForYou, setMadeForYou] = useState(sampleMadeForYou);
@@ -162,9 +162,12 @@ function HomePage() {
             subtitle={item.subtitle}
             image={item.image}
             type={item.type}
-            onSelect={() =>
-              console.log(`Selected ${item.title}`)
-            }
+            onSelect={() => {
+              console.log(`Selected ${item.title}`);
+              if (item.type === "Song" && onSelectTrack) {
+                onSelectTrack(item);
+              }
+            }}
           />
         ))}
       </MediaSection>
@@ -177,9 +180,12 @@ function HomePage() {
             subtitle={item.subtitle}
             image={item.image}
             type={item.type}
-            onSelect={() =>
-              console.log(`Selected ${item.title}`)
-            }
+            onSelect={() => {
+              console.log(`Selected ${item.title}`);
+              if (item.type === "Song" && onSelectTrack) {
+                onSelectTrack(item);
+              }
+            }}
           />
         ))}
       </MediaSection>
@@ -192,9 +198,12 @@ function HomePage() {
             subtitle={item.subtitle}
             image={item.image}
             type={item.type}
-            onSelect={() =>
-              console.log(`Selected ${item.title}`)
-            }
+            onSelect={() => {
+              console.log(`Selected ${item.title}`);
+              if (item.type === "Song" && onSelectTrack) {
+                onSelectTrack(item);
+              }
+            }}
           />
         ))}
       </MediaSection>
