@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -36,7 +37,6 @@ describe("Soundwaves database validation", () => {
     const email1 = `test1_${suffix}@example.com`;
     const email2 = `test2_${suffix}@example.com`;
 
-    // Assumes USER role was inserted by seed.ts
     const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
       SELECT id
       FROM roles
@@ -198,5 +198,135 @@ describe("Soundwaves database validation", () => {
         WHERE id = ${artistId}
       `;
     }
+  });
+
+  // --------------------------------------------------
+  // Sprint 3 - Role C: Additional Database Tests
+  // --------------------------------------------------
+
+  test("media file cannot reference a nonexistent track", async () => {
+    const suffix = Date.now();
+    const filePath = `/test/invalid-track-${suffix}.flac`;
+
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO media_files
+          (track_id, file_path, file_name, media_type, file_size, created_at)
+        VALUES
+          (999999999, ${filePath}, 'invalid-track.flac',
+           'audio/flac', 1000, NOW())
+      `;
+    });
+  });
+
+  test("deleting a track cascades to its media files", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const filePath = `/test/cascade-${suffix}.flac`;
+
+    const tracks = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO tracks
+        (title, duration_ms, is_available, created_at, updated_at)
+      VALUES
+        (${`Cascade Test Track ${suffix}`}, 180000, TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const trackId = tracks[0].id;
+
+    try {
+      await prisma.$executeRaw`
+        INSERT INTO media_files
+          (track_id, file_path, file_name, media_type, file_size, created_at)
+        VALUES
+          (${trackId}, ${filePath}, 'cascade-test.flac',
+           'audio/flac', 1000, NOW())
+      `;
+
+      const beforeDelete = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM media_files
+        WHERE file_path = ${filePath}
+      `;
+
+      assert.equal(beforeDelete.length, 1);
+
+      await prisma.$executeRaw`
+        DELETE FROM tracks
+        WHERE id = ${trackId}
+      `;
+
+      const afterDelete = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM media_files
+        WHERE file_path = ${filePath}
+      `;
+
+      assert.equal(afterDelete.length, 0);
+    } finally {
+      await prisma.$executeRaw`
+        DELETE FROM tracks
+        WHERE id = ${trackId}
+      `;
+    }
+  });
+  // Sprint 3 - Role C: Seed Data Integrity Tests
+
+  test("seeded tracks have valid artist relationships", async () => {
+    const result = await prisma.$queryRaw<
+      Array<{
+        total_tracks: bigint;
+        missing_artists: bigint;
+      }>
+    >`
+      SELECT
+        COUNT(*) AS total_tracks,
+        COUNT(*) FILTER (
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM track_artists ta
+            WHERE ta.track_id = t.id
+          )
+        ) AS missing_artists
+      FROM tracks t
+    `;
+
+    assert.ok(
+      Number(result[0].total_tracks) > 0,
+      "Seeded database should contain tracks"
+    );
+
+    assert.equal(
+      Number(result[0].missing_artists),
+      0,
+      "Every seeded track should have an associated artist"
+    );
+  });
+
+  test("seeded media files reference existing tracks", async () => {
+    const result = await prisma.$queryRaw<
+      Array<{
+        total_media_files: bigint;
+        invalid_media_files: bigint;
+      }>
+    >`
+      SELECT
+        COUNT(*) AS total_media_files,
+        COUNT(*) FILTER (
+          WHERE t.id IS NULL
+        ) AS invalid_media_files
+      FROM media_files mf
+      LEFT JOIN tracks t ON t.id = mf.track_id
+    `;
+
+    assert.ok(
+      Number(result[0].total_media_files) > 0,
+      "Seeded database should contain media files"
+    );
+
+    assert.equal(
+      Number(result[0].invalid_media_files),
+      0,
+      "Every seeded media file should reference an existing track"
+    );
   });
 });
