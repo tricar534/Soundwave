@@ -1,16 +1,6 @@
-#!/usr/bin/env node
-'use strict';
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* global require, process, console, __dirname */
 
-/**
- * SW-203 - Role E integration test runner.
- *
- * From backend/:
- *   npm run ci:integration
- *
- * The runner checks database configuration and connectivity, then invokes
- * the existing SW-132 tests. It does not create tests, alter the CI workflow,
- * start containers, migrate, seed, or generate CI reports.
- */
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
