@@ -450,6 +450,7 @@ jobs:
       - name: Report CI validation results
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         shell: bash
         run: |
           echo "## Soundwave CI Validation Summary" >> "$GITHUB_STEP_SUMMARY"
@@ -465,6 +466,40 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Build: $BUILD_VERSION" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Run ID: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run attempt: $GITHUB_RUN_ATTEMPT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Workflow: $GITHUB_WORKFLOW" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run URL: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$PR_HEAD_SHA" ]; then
+            echo "PR source commit: $PR_HEAD_SHA" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # SW-186: Validate CI build identification and commit traceability
+          if [[ "$BUILD_VERSION" != "soundwave-build-${GITHUB_RUN_NUMBER}" ]]; then
+            echo "::error::Build identifier does not match the workflow run number."
+            exit 1
+          fi
+
+          if [[ ! "$GITHUB_RUN_ID" =~ ^[0-9]+$ || ! "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Invalid GitHub Actions run ID or attempt."
+            exit 1
+          fi
+
+          if [[ ! "$GITHUB_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Invalid commit SHA."
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && ! "$PR_HEAD_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Invalid pull request source commit SHA."
+            exit 1
+          fi
+
+          echo "SW-186: Build metadata validation passed."
+
+
 
           if echo "$NEEDS_JSON" | jq -e '
             any(.[]; .result != "success")
