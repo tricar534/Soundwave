@@ -52,7 +52,6 @@ jobs:
 
       - name: Verify README
         run: test -f README.md
-
   # ------------------------------------------------------------
   # Frontend validation
   # Installs the exact locked dependencies, then runs linting,
