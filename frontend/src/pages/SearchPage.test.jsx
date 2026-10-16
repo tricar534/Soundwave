@@ -193,6 +193,51 @@ describe("SearchPage", () => {
         })
       );
     });
-  });
 
+    // SW-220: Verify that Search accepts a submitted query from Home.
+    it("filters backend tracks using the initial query", async () => {
+      mockTracks.success();
+
+      render(<SearchPage initialQuery="Real" />);
+
+      // Verify the query from Home appears in Search.
+      expect(
+        screen.getByPlaceholderText("Search Soundwave")
+      ).toHaveValue("Real");
+
+      // Confirm that the matching backend track is displayed.
+      expect(
+        await screen.findByText("Real Track")
+      ).toBeInTheDocument();
+    });
+
+    // SW-220: Verify that changes to Search are saved in App.
+    it("reports Search input changes to App", async () => {
+      mockTracks.success();
+      const onQueryChange = vi.fn();
+
+      render(
+        <SearchPage
+          initialQuery=""
+          onQueryChange={onQueryChange}
+        />
+      );
+
+      await screen.findByText("Real Track");
+
+      // Simulate typing directly into the Search page.
+      fireEvent.change(
+        screen.getByPlaceholderText("Search Soundwave"),
+        { target: { value: "Signal" } }
+      );
+
+      // Confirm that App receives the updated query.
+      expect(onQueryChange).toHaveBeenCalledWith("Signal");
+
+      // The test catalog only contains "Real Track".
+      expect(
+        screen.getByText("No songs, artists, or playlists found.")
+      ).toBeInTheDocument();
+    });
+  });
 });
