@@ -103,7 +103,10 @@ function mapTrackToCard(track) {
   };
 }
 
-function HomePage({ onSelectTrack }) {
+function HomePage({ 
+  onSelectTrack, onOpenSearch,
+  homeQuery, onHomeQueryChange, 
+ }) {
   const [recentlyPlayed, setRecentlyPlayed] = useState(sampleRecentlyPlayed);
   const [recommended, setRecommended] = useState(sampleRecommended);
   const [madeForYou, setMadeForYou] = useState(sampleMadeForYou);
@@ -146,12 +149,22 @@ function HomePage({ onSelectTrack }) {
         title="Home"
         description="Welcome back to Soundwave."
       >
+      <form
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onOpenSearch(homeQuery.trim());
+        }}
+      >
         <input
           className="search-input"
           type="search"
           placeholder="Search songs, artists, or albums"
           aria-label="Search music"
+          value={homeQuery}
+          onChange={(event) => onHomeQueryChange(event.target.value)}
         />
+      </form>
       </PageHeader>
 
       <MediaSection title="Recently Played">
