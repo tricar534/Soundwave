@@ -69,8 +69,8 @@ const mockSongs = [
 },
 ];
 
-function SearchPage({ onSelectTrack }) {
-  const [query, setQuery] = useState("");
+function SearchPage({ onSelectTrack, initialQuery = ""}) {
+  const [query, setQuery] = useState(initialQuery);
   const [songs, setSongs] = useState(mockSongs);
   const [catalogStatus, setCatalogStatus] = useState("loading");
 
