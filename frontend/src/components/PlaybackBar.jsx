@@ -17,9 +17,23 @@ function PlaybackBar({ currentTrack }) {
 
   return (
     <footer className="playback-bar">
+      
       <div className="track-info">
-        <div className="track-placeholder" />
-
+        
+        {/* Keep artwork inside the fixed-size placeholder container. */}
+        <div className="track-placeholder">
+         
+         {/* Display the selected song's artwork when available. */}
+         {currentTrack?.image && (
+            <img
+              className="track-artwork"
+              src={currentTrack.image}
+              alt={`${currentTrack.title} artwork`}
+            />
+          )}
+        </div>
+        
+        {/* Display the selected track's title and artist. */}
         <div>
           <strong>{trackToDisplay.title}</strong>
           <p>{trackToDisplay.artist}</p>
