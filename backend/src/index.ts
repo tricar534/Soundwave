@@ -1,5 +1,3 @@
-const sw218BuildFailure: string = 123;
-
 import dotenv from 'dotenv';
 import app from './app';
 
