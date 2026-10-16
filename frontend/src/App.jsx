@@ -23,6 +23,8 @@ function App() {
         return (<SearchPage
           onSelectTrack={setCurrentTrack}
           initialQuery={searchQuery}
+          // Save Search input changes in App so they survive page navigation.
+          onQueryChange={setSearchQuery}
         />);
 
       case "library":

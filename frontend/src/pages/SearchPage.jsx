@@ -69,11 +69,29 @@ const mockSongs = [
 },
 ];
 
-function SearchPage({ onSelectTrack, initialQuery = ""}) {
-  const [query, setQuery] = useState(initialQuery);
-  const [songs, setSongs] = useState(mockSongs);
-  const [catalogStatus, setCatalogStatus] = useState("loading");
+function SearchPage({ 
+    onSelectTrack, 
+    initialQuery = "", 
+    onQueryChange,
+  }) {
 
+    // Initialize Search with the last query saved in App.
+    const [query, setQuery] = useState(initialQuery);
+    const [songs, setSongs] = useState(mockSongs);
+    const [catalogStatus, setCatalogStatus] = useState("loading");
+
+    // Update the Search input and preserve its value in App.
+    function handleQueryChange(event) {
+      const nextQuery = event.target.value;
+
+      // Immediately update Search results as the user types.
+      setQuery(nextQuery);
+
+      // Save the query in App so navigating away doesn't erase it.
+      // Optional chaining keeps SearchPage usable in standalone tests.
+      onQueryChange?.(nextQuery);
+    }
+    
    useEffect(() => {
     async function loadTracks() {
       try {
@@ -125,9 +143,7 @@ function SearchPage({ onSelectTrack, initialQuery = ""}) {
         type="search"
         placeholder="Search Soundwave"
         value={query}
-        onChange={(event) =>
-          setQuery(event.target.value)
-        }
+        onChange={handleQueryChange}
       />
 
       {catalogStatus === "loading" && (
