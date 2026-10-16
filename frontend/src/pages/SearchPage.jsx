@@ -80,11 +80,17 @@ function SearchPage({ onSelectTrack }) {
         const data = await getTracks();
 
         if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-          // Do not map these into MediaCard yet until
-          // the backend track object structure is confirmed.
-          console.log("Backend tracks:", data.tracks);
+          const mappedTracks = data.tracks.map((track) => ({
+            id: track.id,
+            title: track.title,
+            subtitle: "Soundwave",
+            image: "/images/lofi.jpeg",
+            type: "Song",
+          }));
+
+          setSongs(mappedTracks);
           setCatalogStatus("connected");
-        } else {
+        }else {
           // Backend is working, but no real catalog data exists yet.
           setSongs(mockSongs);
           setCatalogStatus("empty");
