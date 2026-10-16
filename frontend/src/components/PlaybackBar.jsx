@@ -32,7 +32,7 @@ function PlaybackBar({ currentTrack }) {
             />
           )}
         </div>
-        
+
         {/* Display the selected track's title and artist. */}
         <div>
           <strong>{trackToDisplay.title}</strong>
@@ -40,43 +40,58 @@ function PlaybackBar({ currentTrack }) {
         </div>
       </div>
 
-      <div className="playback-controls">
-        <button
-          type="button"
-          aria-label="Previous track"
-        >
-          Previous
-        </button>
+        {/* Center the playback buttons and progress indicator. */}
+        <div className="playback-center">
+          <div className="playback-controls">
+            <button
+              type="button"
+              aria-label="Previous track"
+            >
+              Previous
+            </button>
 
-        <button
-          type="button"
-          onClick={() => setIsPlaying(!isPlaying)}
-          aria-label={isPlaying ? "Pause" : "Play"}
-        >
-          {isPlaying ? "Pause" : "Play"}
-        </button>
+            <button
+              type="button"
+              onClick={() => setIsPlaying(!isPlaying)}
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? "Pause" : "Play"}
+            </button>
 
-        <button
-          type="button"
-          aria-label="Next track"
-        >
-          Next
-        </button>
-      </div>
+            <button
+              type="button"
+              aria-label="Next track"
+            >
+              Next
+            </button>
+          </div>
+          
+          {/* Progress indicator placeholder until audio playback is available. */}
+          <div className="track-progress">
+            <span>0:00</span>
 
-      <div className="volume-control">
-        <label htmlFor="volume">
-          Volume
-        </label>
+            <progress
+              value={0}
+              max={100}
+              aria-label="Track progress (not active)"
+            />
 
-        <input
-          id="volume"
-          type="range"
-          min="0"
-          max="100"
-          defaultValue="70"
-        />
-      </div>
+            <span>--:--</span>
+          </div>
+        </div>
+          <div className="volume-control">
+            <label htmlFor="volume">
+              Volume
+            </label>
+
+          <input
+            id="volume"
+            type="range"
+            min="0"
+            max="100"
+            defaultValue="70"
+          />
+        </div>
     </footer>
   );
 }
