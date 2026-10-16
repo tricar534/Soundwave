@@ -135,21 +135,64 @@ describe("SearchPage", () => {
     });
   });
 
+  
   describe("backend returns tracks", () => {
-    it("clears the loading message and shows no warning", async () => {
-      // SearchPage logs backend tracks instead of rendering them (SW-48).
-      vi.spyOn(console, "log").mockImplementation(() => {});
+    it("displays real backend tracks instead of sample content", async () => {
       mockTracks.success();
 
       render(<SearchPage />);
 
-      await vi.waitFor(() =>
-        expect(screen.queryByText(LOADING)).not.toBeInTheDocument()
-      );
+      // Verify the backend track appears.
+      expect(await screen.findByText("Real Track")).toBeInTheDocument();
+
+      // Verify loading and warning messages disappear.
+      expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
       expect(screen.queryByText(EMPTY)).not.toBeInTheDocument();
       expect(screen.queryByText(UNAVAILABLE)).not.toBeInTheDocument();
-      expectSampleContent();
-      expectFilteringWorks();
+
+      // Real tracks replace the sample catalog.
+      expect(screen.queryByText("Midnight Drive")).not.toBeInTheDocument();
+      expect(screen.queryByText("Chill Waves")).not.toBeInTheDocument();
+
+      // Verify searching real backend tracks.
+      search("Real");
+      expect(screen.getByText("Real Track")).toBeInTheDocument();
+
+      // Verify no matching results.
+      search("nonexistent-song");
+      expect(
+        screen.getByText("No songs, artists, or playlists found.")
+      ).toBeInTheDocument();
+
+      // Clearing search restores the backend catalog.
+      search("");
+      expect(screen.getByText("Real Track")).toBeInTheDocument();
+    });
+
+    it("allows selecting a real backend track", async () => {
+      mockTracks.success();
+      const onSelectTrack = vi.fn();
+
+      render(<SearchPage onSelectTrack={onSelectTrack} />);
+
+      // Wait until the backend track appears.
+      const track = await screen.findByText("Real Track");
+
+      // Select the track.
+      fireEvent.click(track);
+
+      // Verify the correct track is passed to the parent.
+      expect(onSelectTrack).toHaveBeenCalledTimes(1);
+      expect(onSelectTrack).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "101",
+          title: "Real Track",
+          subtitle: "Soundwave",
+          image: "/images/lofi.jpeg",
+          type: "Song",
+        })
+      );
     });
   });
+
 });
