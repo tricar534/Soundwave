@@ -103,11 +103,13 @@ function mapTrackToCard(track) {
   };
 }
 
-function HomePage({ onSelectTrack, onOpenSearch }) {
+function HomePage({ 
+  onSelectTrack, onOpenSearch,
+  homeQuery, onHomeQueryChange, 
+ }) {
   const [recentlyPlayed, setRecentlyPlayed] = useState(sampleRecentlyPlayed);
   const [recommended, setRecommended] = useState(sampleRecommended);
   const [madeForYou, setMadeForYou] = useState(sampleMadeForYou);
-  const [homeQuery, setHomeQuery] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -160,7 +162,7 @@ function HomePage({ onSelectTrack, onOpenSearch }) {
           placeholder="Search songs, artists, or albums"
           aria-label="Search music"
           value={homeQuery}
-          onChange={(event) => setHomeQuery(event.target.value)}
+          onChange={(event) => onHomeQueryChange(event.target.value)}
         />
       </form>
       </PageHeader>

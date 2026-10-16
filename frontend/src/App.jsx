@@ -10,7 +10,8 @@ function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const [currentTrack, setCurrentTrack] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
+  const [homeQuery, setHomeQuery] = useState("");
+
   function handleHomeSearch(query) {
     setSearchQuery(query);
     setCurrentPage("search");
@@ -33,6 +34,8 @@ function App() {
           <HomePage
             onSelectTrack={setCurrentTrack}
             onOpenSearch={handleHomeSearch}
+            homeQuery={homeQuery}
+            onHomeQueryChange={setHomeQuery}
           />
         );
     }
