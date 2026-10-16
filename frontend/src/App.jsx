@@ -9,18 +9,32 @@ import "./styles/app.css";
 function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const [currentTrack, setCurrentTrack] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  function handleHomeSearch(query) {
+    setSearchQuery(query);
+    setCurrentPage("search");
+  }
 
   function renderPage() {
     switch (currentPage) {
       case "search":
-        return <SearchPage onSelectTrack={setCurrentTrack} />;
+        return (<SearchPage
+          onSelectTrack={setCurrentTrack}
+          initialQuery={searchQuery}
+        />);
 
       case "library":
         return <LibraryPage />;
 
       case "home":
       default:
-        return <HomePage onSelectTrack={setCurrentTrack} />;
+        return (
+          <HomePage
+            onSelectTrack={setCurrentTrack}
+            onOpenSearch={handleHomeSearch}
+          />
+        );
     }
   }
 
