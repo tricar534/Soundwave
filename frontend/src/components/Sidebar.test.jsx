@@ -21,6 +21,19 @@ describe("Sidebar", () => {
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
+  it("exposes the main navigation landmark by role and accessible name", () => {
+    render(
+      <Sidebar
+        currentPage="home"
+        onNavigate={() => {}}
+      />
+    );
+
+    expect(
+      screen.getByRole("navigation", { name: "Main navigation" })
+    ).toBeInTheDocument();
+  });
+
   it("marks the current page as active", () => {
     render(
       <Sidebar
