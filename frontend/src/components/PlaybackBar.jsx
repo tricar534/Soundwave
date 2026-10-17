@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const noTrackSelected = {
   title: "No track selected",
@@ -7,6 +7,13 @@ const noTrackSelected = {
 
 function PlaybackBar({ currentTrack }) {
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // SW-117: switching to a different track (or clearing the selection)
+  // resets playback to paused, rather than carrying over play state
+  // from whatever was previously selected.
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [currentTrack?.id]);
 
   const trackToDisplay = currentTrack
     ? {
@@ -38,6 +45,7 @@ function PlaybackBar({ currentTrack }) {
           type="button"
           onClick={() => setIsPlaying(!isPlaying)}
           aria-label={isPlaying ? "Pause" : "Play"}
+          disabled={!currentTrack}
         >
           {isPlaying ? "Pause" : "Play"}
         </button>
