@@ -145,12 +145,9 @@ button {
 
 .playback-bar {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-
-  padding: 16px 24px;
-
+  padding: 10px 24px;
   background: #111827;
   border-top: 1px solid #334155;
 }
@@ -161,12 +158,157 @@ button {
   align-items: center;
 }
 
-.track-placeholder {
+/* Keep the PlaybackBar artwork container at a fixed size. */
+.playback-bar .track-placeholder {
   width: 50px;
   height: 50px;
-
+  flex: 0 0 50px;
   border-radius: 6px;
   background: #334155;
+  overflow: hidden;
+}
+
+/* Fit the selected artwork inside the container. */
+.playback-bar .track-artwork {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+
+/* Center playback controls and progress bar together. */
+.playback-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: clamp(220px, 30vw, 340px);
+}
+
+/* Keep Previous, Play, and Next on one centered row. */
+.playback-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Place the elapsed time, progress, and duration in one row. */
+.track-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.track-progress span {
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Style the inactive progress indicator. */
+.track-progress progress {
+  flex: 1;
+  min-width: 0;
+  height: 5px;
+  border: 0;
+  border-radius: 999px;
+  appearance: none;
+  overflow: hidden;
+  background: #334155;
+}
+
+.track-progress progress::-webkit-progress-bar {
+  background: #334155;
+  border-radius: 999px;
+}
+
+.track-progress progress::-webkit-progress-value {
+  background: #a78bfa;
+  border-radius: 999px;
+}
+
+.track-progress progress::-moz-progress-bar {
+  background: #a78bfa;
+  border-radius: 999px;
+}
+
+
+/* Style the PlaybackBar controls to match Soundwave's dark theme. */
+.playback-controls button {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #475569;
+  border-radius: 20px;
+
+  background: #1e293b;
+  color: #e2e8f0;
+
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+/* Highlight controls when the user hovers over them. */
+.playback-controls button:hover {
+  background: #334155;
+}
+
+/* Make Play/Pause the primary action. */
+.playback-controls button:nth-child(2) {
+  background: #a78bfa;
+  color: #111827;
+  border-color: #a78bfa;
+  font-weight: 700;
+}
+
+.playback-controls button:nth-child(2):hover {
+  background: #c4b5fd;
+}
+
+/* Keep keyboard navigation visible. */
+.playback-controls button:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 2px;
+}
+
+/* Align the volume label and slider. */
+.volume-control {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 10px;
+}
+
+.volume-control label {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.volume-control input[type="range"] {
+  width: 110px;
+  accent-color: #a78bfa;
+  cursor: pointer;
+}
+
+/* Prevent long track names from overlapping the controls. */
+.track-info {
+  min-width: 0;
+}
+
+.track-info > div:last-child {
+  min-width: 0;
+}
+
+.track-info strong,
+.track-info p {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .track-info p {
@@ -174,18 +316,17 @@ button {
   color: #94a3b8;
 }
 
-.playback-controls {
-  display: flex;
-  gap: 12px;
-}
-
 .volume-control {
   justify-self: end;
 }
 
+/* Responsive layout for smaller screens. */
 @media (max-width: 768px) {
   .app {
-    grid-template-columns: 80px 1fr;
+    grid-template-columns: 80px minmax(0, 1fr);
+
+    /* Allow PlaybackBar to grow when controls stack. */
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .sidebar {
@@ -201,11 +342,40 @@ button {
     flex-direction: column;
   }
 
+  /* Stack track information above playback controls. */
   .playback-bar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 8px;
+    padding: 12px;
   }
 
+  /* Keep selected track information aligned to the left. */
+  .track-info {
+    width: 100%;
+    min-width: 0;
+    justify-self: start;
+  }
+
+  /* Keep playback buttons and progress bar centered. */
+  .playback-center {
+    width: min(100%, 340px);
+  }
+
+  .playback-controls {
+    gap: 8px;
+  }
+
+  /* Reduce button sizes for smaller screens. */
+  .playback-controls button {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  /* Hide volume controls to preserve space. */
   .volume-control {
     display: none;
   }
 }
+
