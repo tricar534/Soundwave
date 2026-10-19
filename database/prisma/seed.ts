@@ -231,6 +231,126 @@ async function main() {
   });
 
   // --------------------
+  // Additional demo tracks
+  // --------------------
+
+  const additionalTracks = [
+    // Midnight Signals — The Night Waves
+    {
+      title: "City Lights",
+      albumId: midnightSignals.id,
+      trackNumber: 3,
+      durationMs: 205000,
+      artistId: nightWaves.id,
+      genreId: rock.id,
+    },
+    {
+      title: "After Hours",
+      albumId: midnightSignals.id,
+      trackNumber: 4,
+      durationMs: 221000,
+      artistId: nightWaves.id,
+      genreId: rock.id,
+    },
+    {
+      title: "Fading Memories",
+      albumId: midnightSignals.id,
+      trackNumber: 5,
+      durationMs: 197000,
+      artistId: nightWaves.id,
+      genreId: rock.id,
+    },
+    {
+      title: "Electric Dreams",
+      albumId: midnightSignals.id,
+      trackNumber: 6,
+      durationMs: 234000,
+      artistId: nightWaves.id,
+      genreId: rock.id,
+    },
+
+    // Neon Coast — Lunar Echo
+    {
+      title: "Digital Sunset",
+      albumId: neonCoast.id,
+      trackNumber: 2,
+      durationMs: 218000,
+      artistId: lunarEcho.id,
+      genreId: electronic.id,
+    },
+    {
+      title: "Neon Nights",
+      albumId: neonCoast.id,
+      trackNumber: 3,
+      durationMs: 242000,
+      artistId: lunarEcho.id,
+      genreId: electronic.id,
+    },
+    {
+      title: "Ocean Drive",
+      albumId: neonCoast.id,
+      trackNumber: 4,
+      durationMs: 210000,
+      artistId: lunarEcho.id,
+      genreId: electronic.id,
+    },
+    {
+      title: "Starlight",
+      albumId: neonCoast.id,
+      trackNumber: 5,
+      durationMs: 226000,
+      artistId: lunarEcho.id,
+      genreId: electronic.id,
+    },
+
+    // Singles — Static Horizon
+    {
+      title: "Lost Frequencies",
+      albumId: null,
+      trackNumber: null,
+      durationMs: 260000,
+      artistId: staticHorizon.id,
+      genreId: ambient.id,
+    },
+    {
+      title: "Distant Echoes",
+      albumId: null,
+      trackNumber: null,
+      durationMs: 195000,
+      artistId: staticHorizon.id,
+      genreId: ambient.id,
+    },
+    {
+      title: "Solar Drift",
+      albumId: null,
+      trackNumber: null,
+      durationMs: 248000,
+      artistId: staticHorizon.id,
+      genreId: ambient.id,
+    },
+  ];
+
+  const createdAdditionalTracks = [];
+
+  for (const track of additionalTracks) {
+    const created = await prisma.track.create({
+      data: {
+        title: track.title,
+        albumId: track.albumId,
+        trackNumber: track.trackNumber,
+        durationMs: track.durationMs,
+        isAvailable: true,
+      },
+    });
+
+    createdAdditionalTracks.push({
+      trackId: created.id,
+      artistId: track.artistId,
+      genreId: track.genreId,
+    });
+  }
+
+  // --------------------
   // Track artists
   // --------------------
 
@@ -263,6 +383,16 @@ async function main() {
     ],
   });
 
+  // Additional track artists
+  await prisma.trackArtist.createMany({
+    data: createdAdditionalTracks.map((track) => ({
+      trackId: track.trackId,
+      artistId: track.artistId,
+      artistOrder: 1,
+      role: "primary",
+    })),
+  });
+
   // --------------------
   // Track genres
   // --------------------
@@ -286,6 +416,14 @@ async function main() {
         genreId: ambient.id,
       },
     ],
+  });
+
+  // Additional track genres
+  await prisma.trackGenre.createMany({
+    data: createdAdditionalTracks.map((track) => ({
+      trackId: track.trackId,
+      genreId: track.genreId,
+    })),
   });
 
   // --------------------
