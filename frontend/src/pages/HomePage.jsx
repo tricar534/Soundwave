@@ -3,6 +3,7 @@ import PageHeader from "../components/PageHeader";
 import MediaCard from "../components/MediaCard";
 import MediaSection from "../components/MediaSection";
 import { getTracks } from "../services/api";
+import { getTrackArtwork } from "../utils/trackArtwork"; 
 
 const sampleRecentlyPlayed = [
   {
@@ -57,21 +58,21 @@ const sampleMadeForYou = [
     id: 7,
     title: "Daily Mix",
     subtitle: "Personalized Mix",
-    image: "/images/daily-mix.jpg",
+    image: "/images/daily-mix.jpeg",
     type: "Playlist",
   },
   {
     id: 8,
     title: "Acoustic Sessions",
     subtitle: "Soundwave Picks",
-    image: "/images/acoustic-sessions.jpg",
+    image: "/images/acoustic-sessions.jpeg",
     type: "Playlist",
   },
   {
     id: 9,
     title: "Weekend Energy",
     subtitle: "Soundwave Mix",
-    image: "/images/weekend-energy.jpg",
+    image: "/images/weekend-energy.jpeg",
     type: "Playlist",
   },
 ];
@@ -98,7 +99,7 @@ function mapTrackToCard(track) {
     id: track.id,
     title: track.title,
     subtitle: "Soundwave",
-    image: "/images/lofi.jpeg",
+    image: getTrackArtwork(track.title),
     type: "Song",
   };
 }
