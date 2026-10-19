@@ -3,6 +3,7 @@ import PageHeader from "../components/PageHeader";
 import MediaCard from "../components/MediaCard";
 import MediaSection from "../components/MediaSection";
 import { getTracks } from "../services/api";
+import { getTrackArtwork } from "../utils/trackArtwork"; 
 
 const sampleRecentlyPlayed = [
   {
@@ -57,21 +58,21 @@ const sampleMadeForYou = [
     id: 7,
     title: "Daily Mix",
     subtitle: "Personalized Mix",
-    image: "/images/daily-mix.jpg",
+    image: "/images/daily-mix.jpeg",
     type: "Playlist",
   },
   {
     id: 8,
     title: "Acoustic Sessions",
     subtitle: "Soundwave Picks",
-    image: "/images/acoustic-sessions.jpg",
+    image: "/images/acoustic-sessions.jpeg",
     type: "Playlist",
   },
   {
     id: 9,
     title: "Weekend Energy",
     subtitle: "Soundwave Mix",
-    image: "/images/weekend-energy.jpg",
+    image: "/images/weekend-energy.jpeg",
     type: "Playlist",
   },
 ];
@@ -98,12 +99,15 @@ function mapTrackToCard(track) {
     id: track.id,
     title: track.title,
     subtitle: "Soundwave",
-    image: "/images/lofi.jpeg",
+    image: getTrackArtwork(track.title),
     type: "Song",
   };
 }
 
-function HomePage({ onSelectTrack }) {
+function HomePage({ 
+  onSelectTrack, onOpenSearch,
+  homeQuery, onHomeQueryChange, 
+ }) {
   const [recentlyPlayed, setRecentlyPlayed] = useState(sampleRecentlyPlayed);
   const [recommended, setRecommended] = useState(sampleRecommended);
   const [madeForYou, setMadeForYou] = useState(sampleMadeForYou);
@@ -146,12 +150,22 @@ function HomePage({ onSelectTrack }) {
         title="Home"
         description="Welcome back to Soundwave."
       >
+      <form
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onOpenSearch(homeQuery.trim());
+        }}
+      >
         <input
           className="search-input"
           type="search"
           placeholder="Search songs, artists, or albums"
           aria-label="Search music"
+          value={homeQuery}
+          onChange={(event) => onHomeQueryChange(event.target.value)}
         />
+      </form>
       </PageHeader>
 
       <MediaSection title="Recently Played">

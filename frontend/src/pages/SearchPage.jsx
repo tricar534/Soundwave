@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import MediaCard from "../components/MediaCard";
 import PageHeader from "../components/PageHeader";
 import { getTracks } from "../services/api";
+import { getTrackArtwork } from "../utils/trackArtwork";
 
 const mockSongs = [
   {
     id: 1,
     title: "Midnight Drive",
     subtitle: "Example Artist",
-    image: "/images/lofi.jpeg",
+    image: getTrackArtwork("Midnight Drive"),
     type: "Song",
   },
   {
@@ -50,41 +51,65 @@ const mockSongs = [
   id: 7,
   title: "Study Session",
   subtitle: "Soundwave Focus",
-  image: "/images/study-session.jpg",
+  image: "/images/morning.jpeg",
   type: "Playlist",
 },
 {
   id: 8,
   title: "Weekend Vibes",
   subtitle: "Soundwave Mix",
-  image: "/images/weekend-vibes.jpg",
+  image: "/images/beach.jpeg",
   type: "Playlist",
 },
 {
   id: 9,
   title: "After Hours",
   subtitle: "Night Collective",
-  image: "/images/after-hours.jpg",
+  image: "/images/highway.jpeg",
   type: "Album",
 },
 ];
 
-function SearchPage({ onSelectTrack }) {
-  const [query, setQuery] = useState("");
-  const [songs, setSongs] = useState(mockSongs);
-  const [catalogStatus, setCatalogStatus] = useState("loading");
+function SearchPage({ 
+    onSelectTrack, 
+    initialQuery = "", 
+    onQueryChange,
+  }) {
 
+    // Initialize Search with the last query saved in App.
+    const [query, setQuery] = useState(initialQuery);
+    const [songs, setSongs] = useState(mockSongs);
+    const [catalogStatus, setCatalogStatus] = useState("loading");
+
+    // Update the Search input and preserve its value in App.
+    function handleQueryChange(event) {
+      const nextQuery = event.target.value;
+
+      // Immediately update Search results as the user types.
+      setQuery(nextQuery);
+
+      // Save the query in App so navigating away doesn't erase it.
+      // Optional chaining keeps SearchPage usable in standalone tests.
+      onQueryChange?.(nextQuery);
+    }
+    
    useEffect(() => {
     async function loadTracks() {
       try {
         const data = await getTracks();
 
         if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-          // Do not map these into MediaCard yet until
-          // the backend track object structure is confirmed.
-          console.log("Backend tracks:", data.tracks);
+          const mappedTracks = data.tracks.map((track) => ({
+            id: track.id,
+            title: track.title,
+            subtitle: "Soundwave",
+            image: getTrackArtwork(track.title),
+            type: "Song",
+          }));
+
+          setSongs(mappedTracks);
           setCatalogStatus("connected");
-        } else {
+        }else {
           // Backend is working, but no real catalog data exists yet.
           setSongs(mockSongs);
           setCatalogStatus("empty");
@@ -119,9 +144,7 @@ function SearchPage({ onSelectTrack }) {
         type="search"
         placeholder="Search Soundwave"
         value={query}
-        onChange={(event) =>
-          setQuery(event.target.value)
-        }
+        onChange={handleQueryChange}
       />
 
       {catalogStatus === "loading" && (

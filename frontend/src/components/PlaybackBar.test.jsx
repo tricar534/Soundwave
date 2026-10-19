@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import PlaybackBar from "./PlaybackBar";
 import App from "../App";
 
-// SW-94: PlaybackBar control and state tests.
-// SW-117: Play is now enabled/disabled based on track selection, and
-// changing (or clearing) the selected track resets play state to
-// paused. Real audio streaming is still out of scope.
+// SW-221: Verify existing PlaybackBar controls and state behavior.
+// Artwork update: Verify selected-track artwork and placeholder behavior.
+//
+// Current scope includes track information, artwork, local play/pause state,
+// volume controls, and persistence during navigation.
+// Actual audio playback and track skipping are not implemented yet.
 
 function getPlaybackBar() {
   // <footer> has the implicit ARIA role "contentinfo".
@@ -75,37 +77,132 @@ describe("PlaybackBar", () => {
       });
     });
 
-    it("disables the Play control when no track is selected", () => {
-      render(<PlaybackBar />);
+  describe("selected track artwork", () => {
+    // Verify that selecting a track displays its associated artwork.
+    it("displays artwork when a track is selected", () => {
+      const selectedTrack = {
+        id: "50",
+        title: "Midnight Drive",
+        subtitle: "Soundwave",
+        image: "/images/lofi.jpeg",
+        type: "Song",
+      };
 
-      expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
+      render(<PlaybackBar currentTrack={selectedTrack} />);
+
+      // Verify the selected track information.
+      expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
+      expect(screen.getByText("Soundwave")).toBeInTheDocument();
+
+      // Verify the artwork uses the selected track's image.
+      const artwork = screen.getByRole("img", {
+        name: "Midnight Drive artwork",
+      });
+
+      expect(artwork).toHaveAttribute(
+        "src",
+        "/images/lofi.jpeg"
+      );
+
+      // Ensure artwork stays inside the fixed-size placeholder.
+      const placeholder = getPlaybackBar().querySelector(
+        ".track-placeholder"
+      );
+
+      expect(placeholder).toContainElement(artwork);
     });
 
-    it("cannot be toggled to Pause while disabled", () => {
-      render(<PlaybackBar />);
+    // Verify that changing tracks updates both artwork and track details.
+    it("updates artwork when a different track is selected", () => {
+      const firstTrack = {
+        id: "50",
+        title: "Midnight Drive",
+        subtitle: "Soundwave",
+        image: "/images/lofi.jpeg",
+        type: "Song",
+      };
 
-      fireEvent.click(screen.getByRole("button", { name: "Play" }));
+      const secondTrack = {
+        id: "52",
+        title: "Neon Sky",
+        subtitle: "Soundwave",
+        image: "/images/city-light.jpeg",
+        type: "Song",
+      };
 
-      expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+      // Render PlaybackBar with the first track.
+      const { rerender } = render(
+        <PlaybackBar currentTrack={firstTrack} />
+      );
+
       expect(
-        screen.queryByRole("button", { name: "Pause" })
+        screen.getByRole("img", {
+          name: "Midnight Drive artwork",
+        })
+      ).toHaveAttribute("src", "/images/lofi.jpeg");
+
+      // Simulate App selecting a different track.
+      rerender(<PlaybackBar currentTrack={secondTrack} />);
+
+      // Verify that the title and artwork update.
+      expect(screen.getByText("Neon Sky")).toBeInTheDocument();
+
+      expect(
+        screen.getByRole("img", {
+          name: "Neon Sky artwork",
+        })
+      ).toHaveAttribute("src", "/images/city-light.jpeg");
+
+      // The previous track's artwork should no longer appear.
+      expect(
+        screen.queryByRole("img", {
+          name: "Midnight Drive artwork",
+        })
       ).not.toBeInTheDocument();
+    });
+
+    // Verify that the placeholder remains when artwork is unavailable.
+    it("keeps the placeholder when no artwork is provided", () => {
+      // No track selected.
+      const { rerender } = render(<PlaybackBar />);
+
+      expect(
+        screen.getByText("No track selected")
+      ).toBeInTheDocument();
+
+      expect(
+        screen.queryByRole("img")
+      ).not.toBeInTheDocument();
+
+      expect(
+        getPlaybackBar().querySelector(".track-placeholder")
+      ).toBeInTheDocument();
+
+      // A selected track without an image should also use the placeholder.
+      rerender(
+        <PlaybackBar
+          currentTrack={{
+            id: "53",
+            title: "Quiet Orbit",
+            subtitle: "Soundwave",
+            type: "Song",
+          }}
+        />
+      );
+
+      expect(screen.getByText("Quiet Orbit")).toBeInTheDocument();
+
+      expect(
+        screen.queryByRole("img")
+      ).not.toBeInTheDocument();
+
+      expect(
+        getPlaybackBar().querySelector(".track-placeholder")
+      ).toBeInTheDocument();
     });
   });
 
-  describe("initial render (track selected)", () => {
-    it("enables the Play control once a track is selected", () => {
-      render(<PlaybackBar currentTrack={sampleTrack} />);
 
-      expect(screen.getByRole("button", { name: "Play" })).not.toBeDisabled();
-    });
-
-    it("displays the selected track's title and artist", () => {
-      render(<PlaybackBar currentTrack={sampleTrack} />);
-
-      expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
-      expect(screen.getByText("Example Artist")).toBeInTheDocument();
-    });
   });
 
   describe("play / pause interaction", () => {

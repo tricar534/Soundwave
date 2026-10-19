@@ -15,6 +15,14 @@ describe("LibraryPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("exposes the Library heading by role", () => {
+    render(<LibraryPage />);
+
+    expect(
+      screen.getByRole("heading", { name: "Your Library" })
+    ).toBeInTheDocument();
+  });
+
   it("renders the empty library state", () => {
     render(<LibraryPage />);
 
