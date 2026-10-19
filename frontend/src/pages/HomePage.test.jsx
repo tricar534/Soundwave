@@ -19,6 +19,14 @@ describe("HomePage", () => {
     ).toBeInTheDocument();
   });
 
+  it("exposes the Home heading by role", () => {
+    render(<HomePage />);
+
+    expect(
+      screen.getByRole("heading", { name: "Home" })
+    ).toBeInTheDocument();
+  });
+
   it("renders the Recently Played section", () => {
     render(<HomePage />);
 

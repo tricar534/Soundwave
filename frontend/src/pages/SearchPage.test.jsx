@@ -57,6 +57,16 @@ describe("SearchPage", () => {
       expect(api.getTracks).toHaveBeenCalledTimes(1);
     });
 
+    it("exposes the Search heading by role", () => {
+      vi.mocked(api.getTracks).mockReturnValue(new Promise(() => {}));
+
+      render(<SearchPage />);
+
+      expect(
+        screen.getByRole("heading", { name: "Search" })
+      ).toBeInTheDocument();
+    });
+
     it("still filters while loading", () => {
       vi.mocked(api.getTracks).mockReturnValue(new Promise(() => {}));
 
