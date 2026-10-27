@@ -109,3 +109,23 @@ npm run preview
 - Playback controls are UI-only and do not yet play audio.
 - Settings is currently a placeholder.
 - Media artwork references a placeholder image that has not yet been added to the project.
+
+## Public Frontend Configuration (SW-223)
+
+Vite exposes `VITE_` variables to browser-side code. Soundwave currently approves only
+`VITE_API_URL` and `VITE_BACKEND_URL` as public settings; both must be HTTP(S)
+URLs without embedded credentials, query strings, or fragments.
+
+Copy `frontend/.env.example` to a local untracked `frontend/.env` if you need
+to override the default backend URLs. **Never place credentials or secrets**
+in frontend environment files or `VITE_` variables.
+
+From `frontend/`, run `npm run validate:config`. The same safeguard runs
+automatically before `npm run dev` and `npm run build`, including the
+production build executed by GitHub Actions. It checks frontend `.env*`
+files and inherited `VITE_` environment variables and returns a nonzero exit
+code if it finds prohibited configuration. It never prints configuration values.
+
+Validation uses synthetic inputs only; do not test with real secrets.
+This safeguard addresses frontend configuration exposure, not every possible
+way credentials could be hard-coded in application source files.
