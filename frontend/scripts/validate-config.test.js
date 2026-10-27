@@ -56,4 +56,17 @@ describe('SW-223 frontend sensitive configuration safeguard', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).not.toContain(marker);
   });
+
+  it('avoids false positives for benign comments and public URL paths', () => {
+    // Password/token text in a comment or public URL path is not a credential.
+    const result = runWithConfig([
+      '# Reminder: never publish a password or token in frontend variables',
+      '# VITE_DATABASE_PASSWORD=SYNTHETIC_COMMENT_ONLY',
+      'VITE_API_URL=https://example.test/token-help',
+      'VITE_BACKEND_URL=http://localhost:4000',
+      '',
+    ].join('\n'));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('PASS:');
+  });
 });
