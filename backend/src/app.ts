@@ -1,11 +1,36 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import trackRoutes from './routes/track.routes';
 import readinessRoutes from './routes/readiness.routes';
 import { requestDiagnostics } from './middleware/requestDiagnostics';
 import searchRoutes from './routes/search.routes';
 
 const app = express();
+
+// Security response headers (SOC 2 CC5.2 / CC6.1)
+// Applied first so every response, including error responses, carries them.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        // 'unsafe-inline' is required here because the '/' route below
+        // renders an inline <style> block. Scoped to styleSrc only -
+        // scriptSrc stays locked to 'self'.
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'"],
+        objectSrc: ["'none'"],
+      },
+    },
+    frameguard: { action: 'deny' },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+    },
+  })
+);
 
 // Middleware
 app.use(cors());
@@ -75,6 +100,5 @@ app.use('/ready', readinessRoutes);
 // Track API routes
 app.use('/api/tracks', trackRoutes);
 app.use('/api/search', searchRoutes);
-
 
 export default app;
