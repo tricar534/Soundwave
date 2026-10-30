@@ -19,10 +19,14 @@ describe('unknown routes', () => {
     expect(response.status).toBe(404);
   });
 
-  it('returns 404 for the root path', async () => {
+  it('returns 200 for the root path (SW-215 API directory page)', async () => {
+    // '/' is a real registered route (the backend API directory page added
+    // in SW-215), not an unknown route - this is an equivalence check that
+    // a *known* root path is unaffected by the unknown-route handling below.
     const response = await request(app).get('/');
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(response.type).toBe('text/html');
   });
 
   it('returns 404 for an unsupported HTTP method on a route that only accepts GET', async () => {
