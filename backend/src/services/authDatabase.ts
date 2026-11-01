@@ -252,3 +252,24 @@ export async function findActiveSession(
 
   return result.rows[0] ?? null;
 }
+
+ // Revoke a session belonging to a specific user.
+ // Returns false if the session does not exist,
+ // belongs to another user, or is already revoked.
+export async function revokeSession(
+  sessionId: string,
+  userId: string
+): Promise<boolean> {
+  const result = await pool.query(
+    `
+    UPDATE sessions
+    SET revoked_at = NOW()
+    WHERE id = $1::bigint
+      AND user_id = $2::bigint
+      AND revoked_at IS NULL
+    `,
+    [sessionId, userId]
+  );
+
+  return result.rowCount === 1;
+}

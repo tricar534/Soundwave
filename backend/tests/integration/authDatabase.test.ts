@@ -7,6 +7,7 @@ import {
   updateUserProfile, deactivateUser,
   findRoleByName, assignUserRole,
   createSession, findActiveSession,
+  revokeSession
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -424,6 +425,81 @@ describe('SW-234 Authentication Database Operations', () => {
       expect(inactiveSession).toBeNull();
     } finally {
       // Remove only records created by this test.
+      if (sessionId) {
+        await pool.query(
+          'DELETE FROM sessions WHERE id = $1::bigint',
+          [sessionId]
+        );
+      }
+
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
+  it('revokes an existing user session', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    const tokenHash = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+
+    try {
+      // Create a temporary user.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create an active session.
+      sessionId = await createSession({
+        userId,
+        tokenHash,
+        expiresAt
+      });
+
+      // Verify the session is initially active.
+      const activeSession = await findActiveSession(tokenHash);
+      expect(activeSession?.id).toBe(sessionId);
+
+      // Revoke the session.
+      const revoked = await revokeSession(sessionId, userId);
+      expect(revoked).toBe(true);
+
+      // Revoked sessions must no longer be active.
+      const revokedSession = await findActiveSession(tokenHash);
+      expect(revokedSession).toBeNull();
+
+      // Verify revocation was saved in PostgreSQL.
+      const result = await pool.query<{ revokedAt: Date | null }>(
+        `
+        SELECT revoked_at AS "revokedAt"
+        FROM sessions
+        WHERE id = $1::bigint
+        `,
+        [sessionId]
+      );
+
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].revokedAt).not.toBeNull();
+
+      // Revoking the same session again should return false.
+      const revokedAgain = await revokeSession(sessionId, userId);
+      expect(revokedAgain).toBe(false);
+    } finally {
+      // Clean up only the records created by this test.
       if (sessionId) {
         await pool.query(
           'DELETE FROM sessions WHERE id = $1::bigint',
