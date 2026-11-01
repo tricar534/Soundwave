@@ -109,3 +109,22 @@ export async function updateUserProfile(
   return result.rowCount === 1;
 }
 
+
+ // Deactivate an existing user account without deleting its data.
+ // Returns false if the user does not exist.
+export async function deactivateUser(
+  userId: string
+): Promise<boolean> {
+  const result = await pool.query(
+    `
+    UPDATE users
+    SET
+      is_active = FALSE,
+      updated_at = NOW()
+    WHERE id = $1::bigint
+    `,
+    [userId]
+  );
+
+  return result.rowCount === 1;
+}

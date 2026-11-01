@@ -6,6 +6,7 @@ import {
   findUserByEmail,
   createUser,
   updateUserProfile,
+  deactivateUser,
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -162,6 +163,51 @@ describe('SW-234 Authentication Database Operations', () => {
       expect(oldEmailResult).toBeNull();
     } finally {
       // Clean up only the user created by this test.
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
+  it('deactivates an existing user account', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    let userId: string | null = null;
+
+    try {
+      // Create an isolated test account.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Confirm the account starts as active.
+      const activeUser = await findUserByEmail(email);
+      expect(activeUser?.isActive).toBe(true);
+
+      // Deactivate the account.
+      const deactivated = await deactivateUser(userId);
+      expect(deactivated).toBe(true);
+
+      // Verify the change was saved to PostgreSQL.
+      const inactiveUser = await findUserByEmail(email);
+
+      expect(inactiveUser).not.toBeNull();
+      expect(inactiveUser?.id).toBe(userId);
+      expect(inactiveUser?.isActive).toBe(false);
+
+      // Confirm that account information was preserved.
+      expect(inactiveUser?.username).toBe(username);
+      expect(inactiveUser?.email).toBe(email);
+      expect(inactiveUser?.roleName).toBe('USER');
+    } finally {
+      // Remove only the temporary test account.
       if (userId) {
         await pool.query(
           'DELETE FROM users WHERE id = $1::bigint',
