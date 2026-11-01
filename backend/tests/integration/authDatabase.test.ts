@@ -7,7 +7,7 @@ import {
   updateUserProfile, deactivateUser,
   findRoleByName, assignUserRole,
   createSession, findActiveSession,
-  revokeSession
+  revokeSession, revokeUserSessions
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -508,6 +508,90 @@ describe('SW-234 Authentication Database Operations', () => {
       }
 
       if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
+  it('revokes all sessions belonging to a user', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    const tokenHash1 = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    const tokenHash2 = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    let userId: string | null = null;
+
+    try {
+      // Create a temporary user.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create two active sessions for the same user.
+      await createSession({
+        userId,
+        tokenHash: tokenHash1,
+        expiresAt
+      });
+
+      await createSession({
+        userId,
+        tokenHash: tokenHash2,
+        expiresAt
+      });
+
+      // Confirm both sessions are initially active.
+      expect(await findActiveSession(tokenHash1)).not.toBeNull();
+      expect(await findActiveSession(tokenHash2)).not.toBeNull();
+
+      // Revoke all sessions belonging to this user.
+      const revokedCount = await revokeUserSessions(userId);
+
+      expect(revokedCount).toBe(2);
+
+      // Neither session should remain active.
+      expect(await findActiveSession(tokenHash1)).toBeNull();
+      expect(await findActiveSession(tokenHash2)).toBeNull();
+
+      // Verify the revocation timestamps were saved.
+      const result = await pool.query<{ count: number }>(
+        `
+        SELECT COUNT(*)::int AS count
+        FROM sessions
+        WHERE user_id = $1::bigint
+          AND revoked_at IS NOT NULL
+        `,
+        [userId]
+      );
+
+      expect(result.rows[0].count).toBe(2);
+
+      // Calling the operation again should revoke nothing.
+      const revokedAgain = await revokeUserSessions(userId);
+
+      expect(revokedAgain).toBe(0);
+    } finally {
+      // Clean up only this test's session records and user.
+      if (userId) {
+        await pool.query(
+          'DELETE FROM sessions WHERE user_id = $1::bigint',
+          [userId]
+        );
+
         await pool.query(
           'DELETE FROM users WHERE id = $1::bigint',
           [userId]

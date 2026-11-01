@@ -273,3 +273,25 @@ export async function revokeSession(
 
   return result.rowCount === 1;
 }
+
+/**
+ * Revoke all unrevoked sessions belonging to a user.
+ * Returns the number of sessions revoked.
+ *
+ * The backend must authorize the caller before using this function.
+ */
+export async function revokeUserSessions(
+  userId: string
+): Promise<number> {
+  const result = await pool.query(
+    `
+    UPDATE sessions
+    SET revoked_at = NOW()
+    WHERE user_id = $1::bigint
+      AND revoked_at IS NULL
+    `,
+    [userId]
+  );
+
+  return result.rowCount ?? 0;
+}
