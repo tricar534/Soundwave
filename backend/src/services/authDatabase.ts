@@ -38,3 +38,43 @@ export async function findUserByEmail(
 
   return result.rows[0] ?? null;
 }
+
+export interface CreateUserInput {
+  username: string;
+  email: string;
+  passwordHash: string;
+}
+
+// Create a new account with the standard USER role.
+// The password must already be hashed before calling this function.
+export async function createUser(
+  input: CreateUserInput
+): Promise<string> {
+  const result = await pool.query<{ id: string }>(
+    `
+    INSERT INTO users (
+      role_id,
+      username,
+      email,
+      password_hash,
+      updated_at
+    )
+    SELECT
+      id,
+      $1,
+      $2,
+      $3,
+      NOW()
+    FROM roles
+    WHERE name = 'USER'
+    RETURNING id::text AS id
+    `,
+    [input.username, input.email, input.passwordHash]
+  );
+
+  if (!result.rows[0]) {
+    throw new Error('Default USER role not found');
+  }
+
+  return result.rows[0].id;
+}

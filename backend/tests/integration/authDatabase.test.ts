@@ -2,7 +2,10 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { pool } from '../../src/db';
-import { findUserByEmail } from '../../src/services/authDatabase';
+import {
+  findUserByEmail,
+  createUser,
+} from '../../src/services/authDatabase';
 
 afterAll(async () => {
   await pool.end();
@@ -33,9 +36,9 @@ describe('SW-234 Authentication Database Operations', () => {
       // Create a temporary test user.
       const userResult = await pool.query<{ id: string }>(
         `INSERT INTO users
-            (role_id, username, email, password_hash, updated_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        RETURNING id::text AS id`,
+           (role_id, username, email, password_hash, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         RETURNING id::text AS id`,
         [roleId, username, email, 'test-placeholder-not-real-hash']
       );
 
@@ -71,6 +74,45 @@ describe('SW-234 Authentication Database Operations', () => {
         await pool.query(
           'DELETE FROM roles WHERE id = $1::bigint',
           [roleId]
+        );
+      }
+    }
+  });
+
+  it('creates a user with the default USER role', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+    const testPasswordHash = 'test-placeholder-not-real-hash';
+
+    let userId: string | null = null;
+
+    try {
+      // Create a temporary user through the new service.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: testPasswordHash
+      });
+
+      expect(userId).toBeTruthy();
+
+      // Retrieve the user to confirm the account was saved.
+      const createdUser = await findUserByEmail(email);
+
+      expect(createdUser).not.toBeNull();
+      expect(createdUser?.id).toBe(userId);
+      expect(createdUser?.username).toBe(username);
+      expect(createdUser?.email).toBe(email);
+      expect(createdUser?.roleName).toBe('USER');
+      expect(createdUser?.isActive).toBe(true);
+      expect(createdUser?.passwordHash).toBe(testPasswordHash);
+    } finally {
+      // Remove only the user created by this test.
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
         );
       }
     }
