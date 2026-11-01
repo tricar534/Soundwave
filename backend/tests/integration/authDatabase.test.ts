@@ -711,4 +711,61 @@ describe('SW-234 Authentication Database Operations', () => {
     }
   });
 
+  it('does not return an expired session as active', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    const tokenHash = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    let userId: string | null = null;
+
+    try {
+      // Create a temporary test user.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create a session with a future expiration.
+      const sessionId = await createSession({
+        userId,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000)
+      });
+
+      // Verify the session is initially active.
+      const activeSession = await findActiveSession(tokenHash);
+      expect(activeSession).not.toBeNull();
+
+      // Simulate an expired session.
+      // Keep created_at earlier than expires_at.
+      await pool.query(
+        `
+        UPDATE sessions
+        SET
+          created_at = NOW() - INTERVAL '2 hours',
+          expires_at = NOW() - INTERVAL '1 hour'
+        WHERE id = $1::bigint
+        `,
+        [sessionId]
+      );
+
+      // Expired sessions must not be returned.
+      const expiredSession = await findActiveSession(tokenHash);
+      expect(expiredSession).toBeNull();
+    } finally {
+      // Deleting the test user also removes their sessions.
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
 });
