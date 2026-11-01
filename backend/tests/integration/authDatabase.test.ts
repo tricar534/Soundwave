@@ -3,13 +3,10 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { pool } from '../../src/db';
 import {
-  findUserByEmail,
-  createUser,
-  updateUserProfile,
-  deactivateUser,
-  findRoleByName,
-  assignUserRole,
-  createSession,
+  findUserByEmail, createUser,
+  updateUserProfile, deactivateUser,
+  findRoleByName, assignUserRole,
+  createSession, findActiveSession,
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -356,6 +353,77 @@ describe('SW-234 Authentication Database Operations', () => {
       expect(session.revokedAt).toBeNull();
     } finally {
       // Clean up only records created by this test.
+      if (sessionId) {
+        await pool.query(
+          'DELETE FROM sessions WHERE id = $1::bigint',
+          [sessionId]
+        );
+      }
+
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
+  it('finds an active session and rejects inactive users', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    const tokenHash = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+
+    try {
+      // Create a temporary active user.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create a valid session.
+      sessionId = await createSession({
+        userId,
+        tokenHash,
+        expiresAt
+      });
+
+      // Verify that the session can be retrieved.
+      const activeSession = await findActiveSession(tokenHash);
+
+      expect(activeSession).not.toBeNull();
+      expect(activeSession?.id).toBe(sessionId);
+      expect(activeSession?.userId).toBe(userId);
+      expect(activeSession?.expiresAt.getTime()).toBeGreaterThan(
+        Date.now()
+      );
+
+      // Unknown tokens should not match a session.
+      const missingSession = await findActiveSession(
+        'nonexistent-session-token-hash'
+      );
+
+      expect(missingSession).toBeNull();
+
+      // Deactivate the user.
+      await deactivateUser(userId);
+
+      // Existing sessions must no longer be usable.
+      const inactiveSession = await findActiveSession(tokenHash);
+
+      expect(inactiveSession).toBeNull();
+    } finally {
+      // Remove only records created by this test.
       if (sessionId) {
         await pool.query(
           'DELETE FROM sessions WHERE id = $1::bigint',

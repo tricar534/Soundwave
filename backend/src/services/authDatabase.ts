@@ -219,3 +219,36 @@ export async function createSession(
 
   return result.rows[0].id;
 }
+
+export interface AuthSessionRecord {
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+// Find a valid session belonging to an active user.
+// Expired or revoked sessions are not returned.
+export async function findActiveSession(
+  tokenHash: string
+): Promise<AuthSessionRecord | null> {
+  const result = await pool.query<AuthSessionRecord>(
+    `
+    SELECT
+      s.id::text AS id,
+      s.user_id::text AS "userId",
+      s.expires_at AS "expiresAt",
+      s.created_at AS "createdAt"
+    FROM sessions AS s
+    JOIN users AS u ON u.id = s.user_id
+    WHERE s.token_hash = $1
+      AND s.revoked_at IS NULL
+      AND s.expires_at > NOW()
+      AND u.is_active = TRUE
+    LIMIT 1
+    `,
+    [tokenHash]
+  );
+
+  return result.rows[0] ?? null;
+}
