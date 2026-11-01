@@ -178,3 +178,44 @@ export async function assignUserRole(
 
   return result.rowCount === 1;
 }
+
+export interface CreateSessionInput {
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+}
+
+// Create a session for an active user.
+// The token must already be securely hashed before calling this function.
+// Returns the new session ID.
+export async function createSession(
+  input: CreateSessionInput
+): Promise<string> {
+  const result = await pool.query<{ id: string }>(
+    `
+    INSERT INTO sessions (
+      user_id,
+      token_hash,
+      expires_at
+    )
+    SELECT
+      u.id,
+      $2,
+      $3::timestamptz
+    FROM users AS u
+    WHERE u.id = $1::bigint
+      AND u.is_active = TRUE
+      AND $3::timestamptz > NOW()
+    RETURNING id::text AS id
+    `,
+    [input.userId, input.tokenHash, input.expiresAt]
+  );
+
+  if (!result.rows[0]) {
+    throw new Error(
+      'Session creation requires an active user and future expiration'
+    );
+  }
+
+  return result.rows[0].id;
+}

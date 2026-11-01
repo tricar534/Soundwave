@@ -1,5 +1,5 @@
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { pool } from '../../src/db';
 import {
@@ -9,6 +9,7 @@ import {
   deactivateUser,
   findRoleByName,
   assignUserRole,
+  createSession,
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -289,6 +290,83 @@ describe('SW-234 Authentication Database Operations', () => {
         await pool.query(
           'DELETE FROM roles WHERE id = $1::bigint',
           [roleId]
+        );
+      }
+    }
+  });
+
+  it('creates a session for an active user', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    // Generate a unique hashed token for testing.
+    const tokenHash = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+
+    try {
+      // Create an isolated test account.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create a session using the database service.
+      sessionId = await createSession({
+        userId,
+        tokenHash,
+        expiresAt
+      });
+
+      expect(sessionId).toBeTruthy();
+
+      // Verify the saved session directly in PostgreSQL.
+      const result = await pool.query<{
+        userId: string;
+        tokenHash: string;
+        expiresAt: Date;
+        revokedAt: Date | null;
+      }>(
+        `
+        SELECT
+          user_id::text AS "userId",
+          token_hash AS "tokenHash",
+          expires_at AS "expiresAt",
+          revoked_at AS "revokedAt"
+        FROM sessions
+        WHERE id = $1::bigint
+        `,
+        [sessionId]
+      );
+
+      expect(result.rows).toHaveLength(1);
+
+      const session = result.rows[0];
+
+      expect(session.userId).toBe(userId);
+      expect(session.tokenHash).toBe(tokenHash);
+      expect(session.expiresAt.getTime()).toBeGreaterThan(Date.now());
+      expect(session.revokedAt).toBeNull();
+    } finally {
+      // Clean up only records created by this test.
+      if (sessionId) {
+        await pool.query(
+          'DELETE FROM sessions WHERE id = $1::bigint',
+          [sessionId]
+        );
+      }
+
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
         );
       }
     }
