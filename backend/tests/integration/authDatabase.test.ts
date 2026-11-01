@@ -600,4 +600,115 @@ describe('SW-234 Authentication Database Operations', () => {
     }
   });
 
+  it('rejects session creation for an inactive user', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+
+    const tokenHash = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    let userId: string | null = null;
+
+    try {
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Deactivate the account before creating a session.
+      expect(await deactivateUser(userId)).toBe(true);
+
+      // Inactive accounts must not receive new sessions.
+      await expect(
+        createSession({
+          userId,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000)
+        })
+      ).rejects.toThrow(
+        'Session creation requires an active user and future expiration'
+      );
+
+      expect(await findActiveSession(tokenHash)).toBeNull();
+    } finally {
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
+  it('prevents a user from revoking another user session', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+
+    const tokenHash = createHash('sha256')
+      .update(randomBytes(32))
+      .digest('hex');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    let ownerId: string | null = null;
+    let otherUserId: string | null = null;
+
+    try {
+      // Create the session owner.
+      ownerId = await createUser({
+        username: `owner_${uniqueId}`,
+        email: `owner-${uniqueId}@example.invalid`,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create another user.
+      otherUserId = await createUser({
+        username: `other_${uniqueId}`,
+        email: `other-${uniqueId}@example.invalid`,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Create a session belonging to the first user.
+      const sessionId = await createSession({
+        userId: ownerId,
+        tokenHash,
+        expiresAt
+      });
+
+      // Another user must not be able to revoke it.
+      const unauthorized = await revokeSession(
+        sessionId,
+        otherUserId
+      );
+
+      expect(unauthorized).toBe(false);
+
+      // The original session should remain active.
+      expect(await findActiveSession(tokenHash)).not.toBeNull();
+
+      // The actual session owner can revoke it.
+      const authorized = await revokeSession(sessionId, ownerId);
+
+      expect(authorized).toBe(true);
+      expect(await findActiveSession(tokenHash)).toBeNull();
+    } finally {
+      // Deleting the test users also removes their sessions.
+      if (ownerId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [ownerId]
+        );
+      }
+
+      if (otherUserId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [otherUserId]
+        );
+      }
+    }
+  });
+
 });
