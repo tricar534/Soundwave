@@ -78,3 +78,34 @@ export async function createUser(
 
   return result.rows[0].id;
 }
+
+export interface UpdateUserProfileInput {
+  username?: string;
+  email?: string;
+}
+
+// Update an existing user's profile information.
+// Returns false if the user does not exist.
+export async function updateUserProfile(
+  userId: string,
+  input: UpdateUserProfileInput
+): Promise<boolean> {
+  if (input.username === undefined && input.email === undefined) {
+    throw new Error('No profile changes provided');
+  }
+
+  const result = await pool.query(
+    `
+    UPDATE users
+    SET
+      username = COALESCE($2, username),
+      email = COALESCE($3, email),
+      updated_at = NOW()
+    WHERE id = $1::bigint
+    `,
+    [userId, input.username ?? null, input.email ?? null]
+  );
+
+  return result.rowCount === 1;
+}
+

@@ -5,6 +5,7 @@ import { pool } from '../../src/db';
 import {
   findUserByEmail,
   createUser,
+  updateUserProfile,
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -117,4 +118,57 @@ describe('SW-234 Authentication Database Operations', () => {
       }
     }
   });
+
+  it('updates an existing user profile', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+
+    const originalUsername = `sw234_${uniqueId}`;
+    const originalEmail = `sw234-${uniqueId}@example.invalid`;
+
+    const updatedUsername = `updated_${uniqueId}`;
+    const updatedEmail = `updated-${uniqueId}@example.invalid`;
+
+    let userId: string | null = null;
+
+    try {
+      // Create an isolated test account.
+      userId = await createUser({
+        username: originalUsername,
+        email: originalEmail,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      // Update the user's username and email.
+      const updated = await updateUserProfile(userId, {
+        username: updatedUsername,
+        email: updatedEmail
+      });
+
+      expect(updated).toBe(true);
+
+      // Verify the updated values were saved.
+      const updatedUser = await findUserByEmail(updatedEmail);
+
+      expect(updatedUser).not.toBeNull();
+      expect(updatedUser?.id).toBe(userId);
+      expect(updatedUser?.username).toBe(updatedUsername);
+      expect(updatedUser?.email).toBe(updatedEmail);
+      expect(updatedUser?.roleName).toBe('USER');
+      expect(updatedUser?.isActive).toBe(true);
+
+      // Verify the original email no longer matches.
+      const oldEmailResult = await findUserByEmail(originalEmail);
+
+      expect(oldEmailResult).toBeNull();
+    } finally {
+      // Clean up only the user created by this test.
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+    }
+  });
+
 });
