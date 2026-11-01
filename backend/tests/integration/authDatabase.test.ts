@@ -7,6 +7,8 @@ import {
   createUser,
   updateUserProfile,
   deactivateUser,
+  findRoleByName,
+  assignUserRole,
 } from '../../src/services/authDatabase';
 
 afterAll(async () => {
@@ -212,6 +214,81 @@ describe('SW-234 Authentication Database Operations', () => {
         await pool.query(
           'DELETE FROM users WHERE id = $1::bigint',
           [userId]
+        );
+      }
+    }
+  });
+
+  it('retrieves an existing role by name', async () => {
+    const role = await findRoleByName('USER');
+
+    expect(role).not.toBeNull();
+    expect(role?.id).toBeTruthy();
+    expect(role?.name).toBe('USER');
+
+    // Nonexistent roles should return null.
+    const missingRole = await findRoleByName(
+      'NONEXISTENT_SW234_ROLE'
+    );
+
+    expect(missingRole).toBeNull();
+  });
+
+  it('assigns an existing role to a user', async () => {
+    const uniqueId = randomUUID().replace(/-/g, '').slice(0, 12);
+    const username = `sw234_${uniqueId}`;
+    const email = `sw234-${uniqueId}@example.invalid`;
+    const roleName = `TEST_SW234_${uniqueId}`;
+
+    let userId: string | null = null;
+    let roleId: string | null = null;
+
+    try {
+      // Create an isolated test role.
+      const roleResult = await pool.query<{ id: string }>(
+        `
+        INSERT INTO roles (name, description)
+        VALUES ($1, $2)
+        RETURNING id::text AS id
+        `,
+        [roleName, 'Temporary role assignment test']
+      );
+
+      roleId = roleResult.rows[0].id;
+
+      // Create a user with the default USER role.
+      userId = await createUser({
+        username,
+        email,
+        passwordHash: 'test-placeholder-not-real-hash'
+      });
+
+      const originalUser = await findUserByEmail(email);
+      expect(originalUser?.roleName).toBe('USER');
+
+      // Assign the temporary role.
+      const assigned = await assignUserRole(userId, roleName);
+      expect(assigned).toBe(true);
+
+      // Verify the new role was saved.
+      const updatedUser = await findUserByEmail(email);
+
+      expect(updatedUser?.roleName).toBe(roleName);
+      expect(updatedUser?.roleId).toBe(roleId);
+      expect(updatedUser?.id).toBe(userId);
+    } finally {
+      // Clean up the temporary user before its role.
+      if (userId) {
+        await pool.query(
+          'DELETE FROM users WHERE id = $1::bigint',
+          [userId]
+        );
+      }
+
+      if (roleId) {
+        await pool.query(
+          'DELETE FROM roles WHERE id = $1::bigint',
+          [roleId]
         );
       }
     }

@@ -128,3 +128,53 @@ export async function deactivateUser(
 
   return result.rowCount === 1;
 }
+
+export interface AuthRoleRecord {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+// Retrieve a role by its name.
+// Returns null if the role does not exist.
+export async function findRoleByName(
+  roleName: string
+): Promise<AuthRoleRecord | null> {
+  const result = await pool.query<AuthRoleRecord>(
+    `
+    SELECT
+      id::text AS id,
+      name,
+      description
+    FROM roles
+    WHERE name = $1
+    LIMIT 1
+    `,
+    [roleName]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+// Assign an existing role to an existing user.
+// This operation must only be called by authorized backend logic.
+// Returns false if the user or role does not exist.
+export async function assignUserRole(
+  userId: string,
+  roleName: string
+): Promise<boolean> {
+  const result = await pool.query(
+    `
+    UPDATE users AS u
+    SET
+      role_id = r.id,
+      updated_at = NOW()
+    FROM roles AS r
+    WHERE u.id = $1::bigint
+      AND r.name = $2
+    `,
+    [userId, roleName]
+  );
+
+  return result.rowCount === 1;
+}
