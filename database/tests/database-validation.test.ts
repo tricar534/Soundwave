@@ -127,7 +127,7 @@ describe("Soundwaves database validation", () => {
           (999999999, ${username}, ${email},
           'test_hash', TRUE, NOW(), NOW())
       `;
-    });
+    }, /23503/); // PostgreSQL foreign key violation error code
   });
 
   // Verify that a session cannot belong to a nonexistent user.
@@ -144,7 +144,7 @@ describe("Soundwaves database validation", () => {
           (999999999, ${tokenHash},
            NOW() + INTERVAL '1 day', NOW())
       `;
-    });
+    }, /23503/); // PostgreSQL foreign key violation error code
   });
 
   // Verify that two sessions cannot use the same token hash.
@@ -195,7 +195,7 @@ describe("Soundwaves database validation", () => {
             (${userId}, ${tokenHash},
              NOW() + INTERVAL '1 day', NOW())
         `;
-      });
+      }, /23505/); // PostgreSQL unique constraint violation
     } finally {
       // Remove temporary test records.
       await prisma.$executeRaw`
@@ -244,7 +244,7 @@ describe("Soundwaves database validation", () => {
           DELETE FROM roles
           WHERE id = ${roleId}
         `;
-      });
+      }, /23001/); // PostgreSQL restrict constraint violation
 
       // Confirm the failed deletion preserved the role.
       const remainingRoles = await prisma.$queryRaw<Array<{ id: bigint }>>`
@@ -384,7 +384,7 @@ describe("Soundwaves database validation", () => {
             (${userId}, ${tokenHash},
              NOW() - INTERVAL '1 hour', NOW())
         `;
-      });
+      }, /23514/); // PostgreSQL check constraint violation
 
       // Verify that the invalid session was not stored.
       const sessions = await prisma.$queryRaw<Array<{ id: bigint }>>`
@@ -451,7 +451,7 @@ describe("Soundwaves database validation", () => {
              NOW() + INTERVAL '1 day',
              NOW() - INTERVAL '1 hour', NOW())
         `;
-      });
+      }, /23514/); // PostgreSQL CHECK constraint violation
 
       // Verify that the invalid session was not stored.
       const sessions = await prisma.$queryRaw<Array<{ id: bigint }>>`
