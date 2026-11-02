@@ -210,6 +210,62 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that a role cannot be deleted while a user is assigned to it.
+  // PostgreSQL should restrict deletion to preserve the user-role relationship.
+  test("role deletion is restricted when assigned to a user", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const roleName = `test_role_${suffix}`;
+    const username = `role_user_${suffix}`;
+    const email = `role_user_${suffix}@example.com`;
+
+    // Create a temporary role for the constraint test.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO roles (name)
+      VALUES (${roleName})
+      RETURNING id
+    `;
+
+    const roleId = roles[0].id;
+
+    try {
+      // Create a user assigned to the temporary role.
+      await prisma.$executeRaw`
+        INSERT INTO users
+          (role_id, username, email, password_hash,
+           is_active, created_at, updated_at)
+        VALUES
+          (${roleId}, ${username}, ${email},
+           'test_hash', TRUE, NOW(), NOW())
+      `;
+
+      // Deleting an assigned role must fail.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          DELETE FROM roles
+          WHERE id = ${roleId}
+        `;
+      });
+
+      // Confirm the failed deletion preserved the role.
+      const remainingRoles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id FROM roles WHERE id = ${roleId}
+      `;
+
+      assert.equal(remainingRoles.length, 1);
+    } finally {
+      // Clean up temporary records in relationship order.
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE role_id = ${roleId} AND email = ${email}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM roles
+        WHERE id = ${roleId}
+      `;
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
