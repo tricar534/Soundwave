@@ -343,6 +343,71 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that a session must expire after its creation time.
+  // PostgreSQL should reject sessions with invalid expiration timestamps.
+  test("session expiration must be after creation", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const username = `expiry_user_${suffix}`;
+    const email = `expiry_user_${suffix}@example.com`;
+    const tokenHash = `invalid_expiry_${suffix}`;
+
+    // Retrieve the existing USER role.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    // Create a temporary user for the session.
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Expiration before creation must violate the CHECK constraint.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO sessions
+            (user_id, token_hash, expires_at, created_at)
+          VALUES
+            (${userId}, ${tokenHash},
+             NOW() - INTERVAL '1 hour', NOW())
+        `;
+      });
+
+      // Verify that the invalid session was not stored.
+      const sessions = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE token_hash = ${tokenHash}
+      `;
+
+      assert.equal(sessions.length, 0);
+    } finally {
+      // Clean up temporary test records.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
