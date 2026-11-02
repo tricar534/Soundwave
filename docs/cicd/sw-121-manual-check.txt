@@ -1,0 +1,19 @@
+SW-121 manual check, Sun Nov  1 21:27:38 PST 2026, branch role-b/SW-121-catalog-pagination
+--- GET /api/tracks
+{"tracks":[{"id":"1","albumId":"1","title":"Midnight Drive","trackNumber":1,"durationMs":214000,"isAvailable":true},{"id":"2","albumId":"1","title":"Signal Lost","trackNumber":2,"durationMs":198000,"isAvailable":true},{"id":"3","albumId":"2","title":"Neon Sky","trackNumber":1,"durationMs":226000,"isAvailable":true},{"id":"4","albumId":null,"title":"Quiet Orbit","trackNumber":null,"durationMs":305000,"isAvailable":true}],"count":4}
+[HTTP 200]
+--- GET /api/tracks?limit=2
+{"tracks":[{"id":"1","albumId":"1","title":"Midnight Drive","trackNumber":1,"durationMs":214000,"isAvailable":true},{"id":"2","albumId":"1","title":"Signal Lost","trackNumber":2,"durationMs":198000,"isAvailable":true}],"count":2}
+[HTTP 200]
+--- GET /api/tracks?limit=2&offset=2
+{"tracks":[{"id":"3","albumId":"2","title":"Neon Sky","trackNumber":1,"durationMs":226000,"isAvailable":true},{"id":"4","albumId":null,"title":"Quiet Orbit","trackNumber":null,"durationMs":305000,"isAvailable":true}],"count":2}
+[HTTP 200]
+--- GET /api/tracks?limit=0
+{"error":"limit must be a whole number between 1 and 100"}
+[HTTP 400]
+--- GET /api/tracks?offset=-1
+{"error":"offset must be a whole number between 0 and 1000000"}
+[HTTP 400]
+--- GET /api/tracks?limit=abc
+{"error":"limit must be a whole number between 1 and 100"}
+[HTTP 400]
