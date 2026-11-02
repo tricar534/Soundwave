@@ -111,6 +111,105 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that a user cannot reference a role that does not exist.
+  // PostgreSQL should reject the insert due to the role_id foreign key.
+  test("user cannot reference a nonexistent role", async () => {
+    const suffix = Date.now();
+    const username = `invalid_role_${suffix}`;
+    const email = `invalid_role_${suffix}@example.com`;
+
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO users
+          (role_id, username, email, password_hash,
+          is_active, created_at, updated_at)
+        VALUES
+          (999999999, ${username}, ${email},
+          'test_hash', TRUE, NOW(), NOW())
+      `;
+    });
+  });
+
+  // Verify that a session cannot belong to a nonexistent user.
+  // PostgreSQL should reject the insert due to the user_id foreign key.
+  test("session cannot reference a nonexistent user", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const tokenHash = `invalid_user_session_${suffix}`;
+
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO sessions
+          (user_id, token_hash, expires_at, created_at)
+        VALUES
+          (999999999, ${tokenHash},
+           NOW() + INTERVAL '1 day', NOW())
+      `;
+    });
+  });
+
+  // Verify that two sessions cannot use the same token hash.
+  // PostgreSQL should reject duplicate values due to the unique constraint.
+  test("duplicate session token hashes are rejected", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const username = `session_unique_${suffix}`;
+    const email = `session_unique_${suffix}@example.com`;
+    const tokenHash = `duplicate_token_${suffix}`;
+
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Create the first session with a unique token hash.
+      await prisma.$executeRaw`
+        INSERT INTO sessions
+          (user_id, token_hash, expires_at, created_at)
+        VALUES
+          (${userId}, ${tokenHash},
+           NOW() + INTERVAL '1 day', NOW())
+      `;
+
+      // A second session with the same token hash must be rejected.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO sessions
+            (user_id, token_hash, expires_at, created_at)
+          VALUES
+            (${userId}, ${tokenHash},
+             NOW() + INTERVAL '1 day', NOW())
+        `;
+      });
+    } finally {
+      // Remove temporary test records.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
