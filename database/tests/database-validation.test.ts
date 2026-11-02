@@ -266,6 +266,83 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that deleting a user automatically removes their sessions.
+  // PostgreSQL should cascade the deletion through the user_id foreign key.
+  test("deleting a user cascades to their sessions", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const username = `cascade_user_${suffix}`;
+    const email = `cascade_user_${suffix}@example.com`;
+    const tokenHash = `cascade_session_${suffix}`;
+
+    // Retrieve the existing USER role.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    // Create a temporary user.
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Create a session belonging to the temporary user.
+      await prisma.$executeRaw`
+        INSERT INTO sessions
+          (user_id, token_hash, expires_at, created_at)
+        VALUES
+          (${userId}, ${tokenHash},
+           NOW() + INTERVAL '1 day', NOW())
+      `;
+
+      // Verify that the session exists before deletion.
+      const beforeDelete = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      assert.equal(beforeDelete.length, 1);
+
+      // Delete the user and verify the session is also removed.
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+
+      const afterDelete = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      assert.equal(afterDelete.length, 0);
+    } finally {
+      // Clean up temporary records if the test fails early.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
