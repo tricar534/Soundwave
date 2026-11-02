@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import LoginPage from "./LoginPage";
+import { LoginRequestError } from "../services/api";
 
 describe("SW-237 LoginPage", () => {
   it("renders a labeled email-or-username field and masked password field", () => {
@@ -69,5 +70,56 @@ describe("SW-237 LoginPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Authentication API integration is coming");
+  });
+});
+
+
+describe("Sprint 4 Task 2 - login API interaction", () => {
+  function fillForm() {
+    fireEvent.change(screen.getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "synthetic-only" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  }
+
+  it("shows a pending state and prevents double submission", async () => {
+    let resolveLogin;
+    const onLogin = vi.fn(() => new Promise((resolve) => { resolveLogin = resolve; }));
+    render(<LoginPage onLogin={onLogin} />);
+    fillForm();
+
+    expect(screen.getByRole("button", { name: "Signing in..." })).toBeDisabled();
+    expect(screen.getByLabelText("Password")).toBeDisabled();
+    expect(onLogin).toHaveBeenCalledTimes(1);
+
+    resolveLogin({ user: { id: "test-user" } });
+    expect(await screen.findByRole("status")).toHaveTextContent("Login request accepted");
+    expect(screen.getByLabelText("Password")).toHaveValue("");
+  });
+
+  it("displays a safe authentication error and clears the password", async () => {
+    const onLogin = vi.fn().mockRejectedValue(
+      new LoginRequestError("Incorrect email/username or password.", 401),
+    );
+    render(<LoginPage onLogin={onLogin} />);
+    fillForm();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    expect(screen.getByLabelText("Password")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+  });
+
+  it("does not display unexpected internal errors", async () => {
+    const onLogin = vi.fn().mockRejectedValue(new Error("private internal detail"));
+    render(<LoginPage onLogin={onLogin} />);
+    fillForm();
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Sign-in unavailable");
+    });
+    expect(screen.queryByText(/private internal detail/i)).not.toBeInTheDocument();
   });
 });
