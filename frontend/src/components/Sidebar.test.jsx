@@ -73,3 +73,27 @@ describe("Sidebar", () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Sprint 4 Task 3 - sidebar authentication display", () => {
+  it("shows Sign in when no user is authenticated", () => {
+    render(<Sidebar currentPage="home" onNavigate={() => {}} />);
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  });
+
+  it("shows the account label and dispatches local logout", () => {
+    const onLogout = vi.fn();
+    render(
+      <Sidebar
+        currentPage="home"
+        onNavigate={() => {}}
+        authenticatedUser={{ id: "u-123", displayName: "Alice" }}
+        onLogout={onLogout}
+      />,
+    );
+    expect(screen.getByText("Signed in as Alice")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+});
