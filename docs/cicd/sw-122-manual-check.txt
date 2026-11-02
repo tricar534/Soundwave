@@ -1,0 +1,24 @@
+SW-122 manual check, Sun Nov  1 21:09:30 PST 2026, branch role-b/SW-122-register-login
+--- register
+
+[HTTP 000]
+--- register again (duplicate)
+
+[HTTP 000]
+--- login (token redacted below)
+
+[HTTP 000]
+--- wrong password
+
+[HTTP 000]
+--- unknown user
+
+[HTTP 000]
+ username | hash_prefix 
+----------+-------------
+(0 rows)
+
+ token_hash_length | expires_at 
+-------------------+------------
+(0 rows)
+
