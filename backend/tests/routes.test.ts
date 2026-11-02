@@ -151,8 +151,10 @@ describe('Backend routes', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
 
     // Confirm SQL requests tracks ordered by ID.
+    // The limit and offset values are passed as query parameters.
     expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringMatching(/ORDER BY\s+id\s+ASC/i)
+      expect.stringMatching(/ORDER BY\s+id\s+ASC/i),
+      expect.any(Array)
     );
   });
 });
