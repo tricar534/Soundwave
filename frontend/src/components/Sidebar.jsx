@@ -15,7 +15,7 @@ const navigationItems = [
   },
 ];
 
-function Sidebar({ currentPage, onNavigate }) {
+function Sidebar({ currentPage, onNavigate, authenticatedUser = null, onLogout }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -46,14 +46,23 @@ function Sidebar({ currentPage, onNavigate }) {
       </nav>
 
       <div className="sidebar-bottom">
-        <button
-          type="button"
-          className={currentPage === "login" ? "nav-button active" : "nav-button"}
-          onClick={() => onNavigate("login")}
-          aria-current={currentPage === "login" ? "page" : undefined}
-        >
-          Sign in
-        </button>
+        {authenticatedUser ? (
+          <div className="sidebar-auth" aria-label="Account status">
+            <p className="sidebar-auth-user">Signed in as {authenticatedUser.displayName}</p>
+            <button type="button" className="nav-button" onClick={onLogout}>
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={currentPage === "login" ? "nav-button active" : "nav-button"}
+            onClick={() => onNavigate("login")}
+            aria-current={currentPage === "login" ? "page" : undefined}
+          >
+            Sign in
+          </button>
+        )}
 
           <div className="sidebar-status">
             <ApiStatus />
