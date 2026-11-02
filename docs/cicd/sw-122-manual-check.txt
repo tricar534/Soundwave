@@ -1,24 +1,16 @@
-SW-122 manual check, Sun Nov  1 21:09:30 PST 2026, branch role-b/SW-122-register-login
+SW-122 manual check, Sun Nov  1 21:13:09 PST 2026, branch role-b/SW-122-register-login
 --- register
-
-[HTTP 000]
+{"user":{"id":"7","username":"sw122user"}}
+[HTTP 201]
 --- register again (duplicate)
-
-[HTTP 000]
+{"error":"Username or email already in use"}
+[HTTP 409]
 --- login (token redacted below)
-
-[HTTP 000]
+{"token":"<64-hex-token>","expiresAt":"2026-11-09T05:13:10.901Z"}
+[HTTP 200]
 --- wrong password
-
-[HTTP 000]
+{"error":"Invalid username or password"}
+[HTTP 401]
 --- unknown user
-
-[HTTP 000]
- username | hash_prefix 
-----------+-------------
-(0 rows)
-
- token_hash_length | expires_at 
--------------------+------------
-(0 rows)
-
+{"error":"Invalid username or password"}
+[HTTP 401]
