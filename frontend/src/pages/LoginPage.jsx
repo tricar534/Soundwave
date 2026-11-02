@@ -1,20 +1,23 @@
 import { useState } from "react";
 import PageHeader from "../components/PageHeader";
+import { LoginRequestError } from "../services/api";
 import "../styles/login.css";
 
 /**
- * SW-237: UI-only login form.
- * A later frontend task can provide onLogin to connect the backend authentication API.
- * This component does not authenticate users or save passwords/tokens.
+ * SW-237 UI extended by Sprint 4 Task 2 to call the backend API.
+ * Client-side session state and logout will be implemented in the next task.
+ * This component never stores passwords or authentication tokens.
  */
 function LoginPage({ onLogin }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+    if (isSubmitting) return;
     setNotice("");
 
     const nextErrors = {};
@@ -26,17 +29,30 @@ function LoginPage({ onLogin }) {
     }
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0) {
+    if (Object.keys(nextErrors).length > 0) return;
+
+    if (!onLogin) {
+      // Preserve the SW-237 standalone component behavior.
+      setNotice("Login form ready. Authentication API integration is coming in a later task.");
       return;
     }
 
-    if (onLogin) {
-      onLogin({ identifier: identifier.trim(), password });
-      return;
+    setIsSubmitting(true);
+    try {
+      await onLogin({ identifier: identifier.trim(), password });
+      setNotice("Login request accepted. Authentication state is coming in the next task.");
+      setPassword("");
+    } catch (error) {
+      // Only allow messages created by our API service. Never expose raw server errors.
+      setErrors({
+        form: error instanceof LoginRequestError
+          ? error.message
+          : "Sign-in unavailable. Please try again.",
+      });
+      setPassword("");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Do not pretend that a UI-only submission successfully authenticated.
-    setNotice("Login form ready. Authentication API integration is coming in a later task.");
   }
 
   return (
@@ -47,7 +63,7 @@ function LoginPage({ onLogin }) {
       />
 
       <div className="login-panel">
-        <form className="login-form" onSubmit={handleSubmit} noValidate>
+        <form className="login-form" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
           <div className="login-field">
             <label htmlFor="login-identifier">Email or username</label>
             <input
@@ -64,6 +80,7 @@ function LoginPage({ onLogin }) {
               aria-invalid={Boolean(errors.identifier)}
               aria-describedby={errors.identifier ? "login-identifier-error" : undefined}
               required
+              disabled={isSubmitting}
             />
             {errors.identifier && (
               <p className="login-error" id="login-identifier-error" role="alert">
@@ -88,6 +105,7 @@ function LoginPage({ onLogin }) {
               aria-invalid={Boolean(errors.password)}
               aria-describedby={errors.password ? "login-password-error" : undefined}
               required
+              disabled={isSubmitting}
             />
             {errors.password && (
               <p className="login-error" id="login-password-error" role="alert">
@@ -96,7 +114,10 @@ function LoginPage({ onLogin }) {
             )}
           </div>
 
-          <button className="login-submit" type="submit">Sign in</button>
+          {errors.form && <p className="login-error" role="alert">{errors.form}</p>}
+          <button className="login-submit" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : "Sign in"}
+          </button>
         </form>
         {notice && <p className="login-notice" role="status">{notice}</p>}
       </div>
