@@ -1,0 +1,19 @@
+#!/bin/sh
+# SW-223: Reject prohibited frontend configuration before a local Git commit.
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if [ ! -f "$REPO_ROOT/frontend/package.json" ]; then
+  echo "SW-223: frontend/package.json was not found; cannot validate configuration." >&2
+  exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "SW-223: npm is required to validate frontend configuration." >&2
+  exit 1
+fi
+
+echo "SW-223: Checking frontend configuration before commit..."
+cd "$REPO_ROOT/frontend"
+npm run validate:config
