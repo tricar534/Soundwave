@@ -612,6 +612,73 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that a track cannot have the same genre relationship twice.
+  // PostgreSQL should enforce the composite primary key.
+  test("duplicate track-genre relationships are rejected", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Create a temporary track for testing.
+    const track = await prisma.track.create({
+      data: {
+        title: `Genre Test Track ${suffix}`,
+        durationMs: 180000,
+      },
+    });
+
+    let genreId: bigint | null = null;
+
+    try {
+      // Create a temporary genre.
+      const genre = await prisma.genre.create({
+        data: {
+          name: `Test Genre ${suffix}`,
+        },
+      });
+
+      genreId = genre.id;
+
+      // Create a valid track-genre relationship.
+      await prisma.$executeRaw`
+        INSERT INTO track_genres (track_id, genre_id)
+        VALUES (${track.id}, ${genreId})
+      `;
+
+      // Duplicate relationships must violate the composite primary key.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO track_genres (track_id, genre_id)
+          VALUES (${track.id}, ${genreId})
+        `;
+      }, /23505/); // PostgreSQL unique constraint violation
+
+      // Confirm that only one relationship was stored.
+      const relationships = await prisma.$queryRaw<Array<{ track_id: bigint }>>`
+        SELECT track_id
+        FROM track_genres
+        WHERE track_id = ${track.id}
+          AND genre_id = ${genreId}
+      `;
+
+      assert.equal(relationships.length, 1);
+    } finally {
+      // Clean up temporary test records.
+      await prisma.$executeRaw`
+        DELETE FROM track_genres
+        WHERE track_id = ${track.id}
+      `;
+
+      await prisma.track.delete({
+        where: { id: track.id },
+      });
+
+      if (genreId !== null) {
+        await prisma.genre.delete({
+          where: { id: genreId },
+        });
+      }
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
