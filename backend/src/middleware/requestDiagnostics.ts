@@ -21,12 +21,12 @@ export function requestDiagnostics(
   next: NextFunction
 ): void {
 
- const incomingId = req.get('X-Request-ID');
+  const incomingId = req.get('X-Request-ID');
 
   const requestId =
-  incomingId && /^[a-zA-Z0-9_-]{1,128}$/.test(incomingId)
-    ? incomingId
-    : randomUUID();
+    incomingId && /^[a-zA-Z0-9_-]{1,128}$/.test(incomingId)
+      ? incomingId
+      : randomUUID();
 
   const startTime = process.hrtime.bigint();
 
@@ -43,13 +43,20 @@ export function requestDiagnostics(
     const durationMs =
       Number(endTime - startTime) / 1_000_000;
 
+
+    const routePattern =
+      typeof req.route?.path === 'string'
+        ? req.route.path
+        : '[unmatched]';
+
     const logData = {
       requestId,
       method: req.method,
-      path: req.path,
+      path: routePattern,
       status: res.statusCode,
       durationMs: Math.round(durationMs)
     };
+
 
     console.info(
       '[Soundwave Request]',
