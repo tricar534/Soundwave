@@ -18,6 +18,6 @@
 - Auth negative case: not available in this candidate.
 
 ## Defects
-- D1: Invalid JSON body returns an HTML error page with a stack trace and local file paths (information disclosure). Jira: SW-301
-- D2: Unknown routes and unsupported methods return an HTML 404 ("Cannot GET ...") instead of JSON, and unsupported methods return 404 instead of 405. Jira: SW-302
+- D1: Invalid JSON body returns an HTML error page with a stack trace and local file paths (information disclosure). Jira: SW-247
+- D2: Unknown routes and unsupported methods return an HTML 404 ("Cannot GET ...") instead of JSON, and unsupported methods return 404 instead of 405. Jira: SW-243
 - Setup finding: backend/.env (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME) is required but not documented. Not a code defect.
