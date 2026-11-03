@@ -15,8 +15,20 @@ function getPlaybackBar() {
   return screen.getByRole("contentinfo");
 }
 
+const sampleTrack = {
+  id: "1",
+  title: "Midnight Drive",
+  subtitle: "Example Artist",
+};
+
+const otherTrack = {
+  id: "2",
+  title: "Chill Waves",
+  subtitle: "Soundwave Mix",
+};
+
 describe("PlaybackBar", () => {
-  describe("initial render", () => {
+  describe("initial render (no track selected)", () => {
     it("renders the default track information", () => {
       render(<PlaybackBar />);
 
@@ -195,7 +207,7 @@ describe("PlaybackBar", () => {
 
   describe("play / pause interaction", () => {
     it("switches to Pause after one click", () => {
-      render(<PlaybackBar />);
+      render(<PlaybackBar currentTrack={sampleTrack} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
@@ -207,7 +219,7 @@ describe("PlaybackBar", () => {
     });
 
     it("returns to Play after a second click", () => {
-      render(<PlaybackBar />);
+      render(<PlaybackBar currentTrack={sampleTrack} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Play" }));
       fireEvent.click(screen.getByRole("button", { name: "Pause" }));
@@ -216,7 +228,7 @@ describe("PlaybackBar", () => {
     });
 
     it("stays consistent across repeated toggles", () => {
-      render(<PlaybackBar />);
+      render(<PlaybackBar currentTrack={sampleTrack} />);
 
       // Odd number of clicks -> playing, even -> paused.
       for (let clicks = 1; clicks <= 5; clicks += 1) {
@@ -232,25 +244,56 @@ describe("PlaybackBar", () => {
     });
 
     it("does not change the displayed track when toggling", () => {
-      render(<PlaybackBar />);
+      render(<PlaybackBar currentTrack={sampleTrack} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Play" }));
 
-      expect(screen.getByText("No track selected")).toBeInTheDocument();
-      expect(screen.getByText("Soundwave")).toBeInTheDocument();
+      expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
+      expect(screen.getByText("Example Artist")).toBeInTheDocument();
+    });
+  });
+
+  describe("track change resets play state", () => {
+    it("resets to paused when a different track is selected", () => {
+      const { rerender } = render(<PlaybackBar currentTrack={sampleTrack} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Play" }));
+      expect(
+        screen.getByRole("button", { name: "Pause" })
+      ).toBeInTheDocument();
+
+      rerender(<PlaybackBar currentTrack={otherTrack} />);
+
+      expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Pause" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("resets to paused and disables Play when the track is cleared", () => {
+      const { rerender } = render(<PlaybackBar currentTrack={sampleTrack} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Play" }));
+      expect(
+        screen.getByRole("button", { name: "Pause" })
+      ).toBeInTheDocument();
+
+      rerender(<PlaybackBar currentTrack={null} />);
+
+      expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
     });
   });
 
   describe("previous / next controls", () => {
     it("can be clicked without changing track info or play state", () => {
-      render(<PlaybackBar />);
+      render(<PlaybackBar currentTrack={sampleTrack} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Play" }));
       fireEvent.click(screen.getByRole("button", { name: "Previous track" }));
       fireEvent.click(screen.getByRole("button", { name: "Next track" }));
 
       // No queue exists yet, so prev/next are no-ops in the current build.
-      expect(screen.getByText("No track selected")).toBeInTheDocument();
+      expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
     });
   });
@@ -284,7 +327,7 @@ describe("PlaybackBar", () => {
     });
 
     it("does not affect play state when volume changes", () => {
-      render(<PlaybackBar />);
+      render(<PlaybackBar currentTrack={sampleTrack} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Play" }));
       fireEvent.change(screen.getByRole("slider", { name: "Volume" }), {
@@ -317,6 +360,9 @@ describe("PlaybackBar", () => {
       render(<App />);
 
       const bar = getPlaybackBar();
+
+      // Select a Song so the Play control is enabled.
+      fireEvent.click(screen.getByText("Midnight Drive"));
 
       fireEvent.click(within(bar).getByRole("button", { name: "Play" }));
       fireEvent.change(within(bar).getByRole("slider", { name: "Volume" }), {
