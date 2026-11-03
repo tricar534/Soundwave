@@ -11,7 +11,7 @@ on:
       - sw-164-docker-build-validation
 
 env:
-  SIMULATE_FAILURE: "true"
+  SIMULATE_FAILURE: "false"
 
 jobs:
   docker-failure-test:
