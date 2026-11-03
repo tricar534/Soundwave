@@ -5,7 +5,7 @@ import "../styles/login.css";
 
 /**
  * SW-237 UI extended by Sprint 4 Task 2 to call the backend API.
- * Client-side session state and logout will be implemented in the next task.
+ * The parent App owns short-lived authentication UI state and logout.
  * This component never stores passwords or authentication tokens.
  */
 function LoginPage({ onLogin }) {
@@ -40,7 +40,7 @@ function LoginPage({ onLogin }) {
     setIsSubmitting(true);
     try {
       await onLogin({ identifier: identifier.trim(), password });
-      setNotice("Login request accepted. Authentication state is coming in the next task.");
+      setNotice("Sign-in successful.");
       setPassword("");
     } catch (error) {
       // Only allow messages created by our API service. Never expose raw server errors.

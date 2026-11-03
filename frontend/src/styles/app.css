@@ -68,6 +68,15 @@ button {
   margin-top: auto;
 }
 
+/* Sprint 4 Task 3: compact signed-in status; no private session details shown. */
+.sidebar-auth-user {
+  margin: 0 0 12px;
+  padding: 0 12px;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .main-content {
   min-width: 0;
   min-height: 0;
