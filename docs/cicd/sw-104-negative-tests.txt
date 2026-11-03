@@ -1,0 +1,8 @@
+
+ [32m✓[39m tests/negativeRoutes.test.ts [2m([22m[2m23 tests[22m[2m | [22m[90m2 todo[39m[2m)[22m[32m 130[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (7)[39m
+[2m      Tests [22m [1m[32m56 passed[39m[22m[2m | [22m[33m3 skipped[39m[2m | [22m[90m4 todo[39m[90m (63)[39m
+[2m   Start at [22m 19:38:22
+[2m   Duration [22m 1.08s[2m (import 72%, tests 13%, transform 12%, worker 3%)[22m
+
