@@ -46,6 +46,15 @@ function Sidebar({ currentPage, onNavigate }) {
       </nav>
 
       <div className="sidebar-bottom">
+        <button
+          type="button"
+          className={currentPage === "login" ? "nav-button active" : "nav-button"}
+          onClick={() => onNavigate("login")}
+          aria-current={currentPage === "login" ? "page" : undefined}
+        >
+          Sign in
+        </button>
+
           <div className="sidebar-status">
             <ApiStatus />
           </div>
