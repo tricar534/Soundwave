@@ -123,9 +123,11 @@ jobs:
         working-directory: backend
         run: npm run build
 
+      # Database integration tests run in the PostgreSQL-enabled job.
+      # This only excludes the authentication tests from the job without PostgreSQL
       - name: Run backend tests
         working-directory: backend
-        run: npm test
+        run: npm test -- --exclude "**/authDatabase.test.ts"
 
       - name: Upload backend build artifact
         uses: actions/upload-artifact@v4
@@ -362,8 +364,8 @@ jobs:
 
   # ------------------------------------------------------------
   # Backend/database integration smoke test
-  # Starts a temporary PostgreSQL service, applies migrations,
-  # builds and starts the backend, then verifies the health endpoint.
+  # Starts PostgreSQL, applies migrations, seeds test data,
+  # verifies authentication operations, and checks backend health.
   # ------------------------------------------------------------
   integration-smoke-test:
     name: Backend Database Integration Smoke Test
@@ -386,6 +388,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://soundwaves_dev:change_me@localhost:5432/soundwaves?schema=public
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_USER: soundwaves_dev
+      DB_PASSWORD: change_me
+      DB_NAME: soundwaves
 
     steps:
       - name: Checkout repository
@@ -408,6 +415,11 @@ jobs:
         working-directory: database
         run: npm run db:deploy
 
+      # Seed only the disposable CI PostgreSQL database.
+      - name: Seed CI test database
+        working-directory: database
+        run: npm run db:seed
+
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
@@ -415,6 +427,11 @@ jobs:
       - name: Build backend
         working-directory: backend
         run: npm run build
+
+      # SW-234: Verify authentication database operations.
+      - name: Run authentication database integration tests
+        working-directory: backend
+        run: npm test -- tests/integration/authDatabase.test.ts
 
       - name: Start backend
         working-directory: backend

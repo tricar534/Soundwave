@@ -11,7 +11,7 @@ services:
       PGTZ: UTC
 
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
 
     volumes:
       - soundwaves_postgres_data:/var/lib/postgresql

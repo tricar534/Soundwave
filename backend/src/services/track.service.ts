@@ -1,8 +1,9 @@
 
 import { pool } from '../db';
+import { DEFAULT_LIMIT, DEFAULT_OFFSET } from '../utils/validatePagination';
 
 // Retrieve all tracks from the PostgreSQL catalog.
-export async function getCatalogTracks() {
+export async function getCatalogTracks(limit = DEFAULT_LIMIT, offset = DEFAULT_OFFSET) {
   const result = await pool.query(
     `
     SELECT
@@ -14,7 +15,9 @@ export async function getCatalogTracks() {
       is_available AS "isAvailable"
     FROM tracks
     ORDER BY id ASC
-    `
+    LIMIT $1 OFFSET $2
+    `,
+    [limit, offset]
   );
 
   return result.rows;

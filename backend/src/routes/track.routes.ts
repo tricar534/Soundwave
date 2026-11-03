@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { isValidPostgresTrackId } from '../utils/validateTrackId';
+import { parsePagination } from '../utils/validatePagination';
 import { 
   getCatalogTracks, 
   getTrackById,
@@ -7,11 +8,21 @@ import {
 
 const router = Router();
 
-// Retrieve all catalog tracks.
+// Retrieve catalog tracks. Optional limit and offset query parameters select a page.
 router.get('/', async (req, res) => {
+  // Validate pagination before querying the database.
+  const pagination = parsePagination(req.query);
+
+  if (!pagination.ok) {
+    res.status(400).json({
+      error: pagination.error,
+    });
+    return;
+  }
+
   try {
     // Retrieve tracks from PostgreSQL
-    const tracks = await getCatalogTracks();
+    const tracks = await getCatalogTracks(pagination.limit, pagination.offset);
 
     // Return the catalog tracks and total retrieved.
     res.status(200).json({

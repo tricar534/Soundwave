@@ -1,0 +1,189 @@
+SW-105 negative API session, Sat Oct 31 13:47:54 PDT 2026, commit 9a6782d on role-b/SW-230-header-verification-evidence
+NOTE: first run had no backend/.env and PostgreSQL was unreachable, so catalog rows that returned 500 in it were invalid. They were repeated in the final re-run section.
+## 1. Valid baseline (must pass first)
+--- baseline health
+$ curl http://localhost:4000/health
+{"status":"ok","service":"soundwave-backend"}
+[HTTP 200] [application/json; charset=utf-8]
+
+--- baseline track list
+$ curl http://localhost:4000/api/tracks
+{"error":"Internal server error"}
+[HTTP 500] [application/json; charset=utf-8]
+
+--- baseline search
+$ curl http://localhost:4000/api/search?q=love
+{"error":"Internal server error"}
+[HTTP 500] [application/json; charset=utf-8]
+
+## 2. Malformed input
+--- track id letters
+$ curl http://localhost:4000/api/tracks/abc
+{"error":"Invalid track ID"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- track id negative
+$ curl http://localhost:4000/api/tracks/-1
+{"error":"Invalid track ID"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- track id decimal
+$ curl http://localhost:4000/api/tracks/1.5
+{"error":"Invalid track ID"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- track id overflow
+$ curl http://localhost:4000/api/tracks/99999999999999999999
+{"error":"Invalid track ID"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- track id null byte
+$ curl http://localhost:4000/api/tracks/%00
+{"error":"Invalid track ID"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- invalid JSON body
+$ curl -X POST http://localhost:4000/api/tracks -H Content-Type: application/json -d {bad json
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>SyntaxError: Expected property name or &#39;}&#39; in JSON at position 1 (line 1 column 2)<br> &nbsp; &nbsp;at JSON.parse (&lt;anonymous&gt;)<br> &nbsp; &nbsp;at parse (C:\Users\<user>\Soundwave\backend\node_modules\body-parser\lib\types\json.js:91:21)<br> &nbsp; &nbsp;at C:\Users\<user>\Soundwave\backend\node_modules\body-parser\lib\read.js:162:18<br> &nbsp; &nbsp;at AsyncResource.runInAsyncScope (node:async_hooks:227:14)<br> &nbsp; &nbsp;at invokeCallback (C:\Users\<user>\Soundwave\backend\node_modules\raw-body\index.js:238:16)<br> &nbsp; &nbsp;at done (C:\Users\<user>\Soundwave\backend\node_modules\raw-body\index.js:227:7)<br> &nbsp; &nbsp;at IncomingMessage.onEnd (C:\Users\<user>\Soundwave\backend\node_modules\raw-body\index.js:287:7)<br> &nbsp; &nbsp;at IncomingMessage.emit (node:events:509:28)<br> &nbsp; &nbsp;at endReadableNT (node:internal/streams/readable:1729:12)<br> &nbsp; &nbsp;at process.processTicksAndRejections (node:internal/process/task_queues:90:21)</pre>
+</body>
+</html>
+
+[HTTP 400] [text/html; charset=utf-8]
+
+--- SQL-style search text
+$ curl -G http://localhost:4000/api/search --data-urlencode q=' OR 1=1 --
+{"error":"Internal server error"}
+[HTTP 500] [application/json; charset=utf-8]
+
+--- very long search
+$ curl http://localhost:4000/api/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+{"error":"Search query must be between 1 and 100 characters"}
+[HTTP 400] [application/json; charset=utf-8]
+
+## 3. Missing resource
+--- valid-format id not in catalog
+$ curl http://localhost:4000/api/tracks/999999
+{"error":"Internal server error"}
+[HTTP 500] [application/json; charset=utf-8]
+
+--- unknown route
+$ curl http://localhost:4000/api/does-not-exist
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot GET /api/does-not-exist</pre>
+</body>
+</html>
+
+[HTTP 404] [text/html; charset=utf-8]
+
+## 4. Unknown or unsupported request
+--- DELETE track
+$ curl -X DELETE http://localhost:4000/api/tracks/1
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot DELETE /api/tracks/1</pre>
+</body>
+</html>
+
+[HTTP 404] [text/html; charset=utf-8]
+
+--- PUT tracks
+$ curl -X PUT http://localhost:4000/api/tracks
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot PUT /api/tracks</pre>
+</body>
+</html>
+
+[HTTP 404] [text/html; charset=utf-8]
+
+--- POST health
+$ curl -X POST http://localhost:4000/health
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /health</pre>
+</body>
+</html>
+
+[HTTP 404] [text/html; charset=utf-8]
+
+--- search with no q
+$ curl http://localhost:4000/api/search
+{"error":"Search query must be between 1 and 100 characters"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- search empty q
+$ curl http://localhost:4000/api/search?q=
+{"error":"Search query must be between 1 and 100 characters"}
+[HTTP 400] [application/json; charset=utf-8]
+
+--- unexpected parameters
+$ curl http://localhost:4000/api/tracks?limit=-1&foo=bar
+{"error":"Internal server error"}
+[HTTP 500] [application/json; charset=utf-8]
+
+## 5. Auth negative case
+N/A: no auth endpoints on the Sprint 4 candidate (SW-122/SW-123 not merged).
+## Re-run after PostgreSQL started and backend/.env configured, Sat Oct 31 13:56:44 PDT 2026
+--- baseline track list
+$ curl http://localhost:4000/api/tracks
+{"tracks":[{"id":"1","albumId":"1","title":"Midnight Drive","trackNumber":1,"durationMs":214000,"isAvailable":true},{"id":"2","albumId":"1","title":"Signal Lost","trackNumber":2,"durationMs":198000,"isAvailable":true},{"id":"3","albumId":"2","title":"Neon Sky","trackNumber":1,"durationMs":226000,"isAvailable":true},{"id":"4","albumId":null,"title":"Quiet Orbit","trackNumber":null,"durationMs":305000,"isAvailable":true}],"count":4}
+[HTTP 200] [application/json; charset=utf-8]
+
+--- baseline search
+$ curl http://localhost:4000/api/search?q=love
+{"tracks":[],"count":0}
+[HTTP 200] [application/json; charset=utf-8]
+
+--- search matching a real title
+$ curl http://localhost:4000/api/search?q=neon
+{"tracks":[{"id":"3","albumId":"2","title":"Neon Sky","trackNumber":1,"durationMs":226000,"isAvailable":true}],"count":1}
+[HTTP 200] [application/json; charset=utf-8]
+
+--- SQL-style search text
+$ curl -G http://localhost:4000/api/search --data-urlencode q=' OR 1=1 --
+{"tracks":[],"count":0}
+[HTTP 200] [application/json; charset=utf-8]
+
+--- valid-format id not in catalog
+$ curl http://localhost:4000/api/tracks/999999
+{"error":"Track not found"}
+[HTTP 404] [application/json; charset=utf-8]
+
+--- valid track id
+$ curl http://localhost:4000/api/tracks/1
+{"track":{"id":"1","albumId":"1","title":"Midnight Drive","trackNumber":1,"durationMs":214000,"isAvailable":true}}
+[HTTP 200] [application/json; charset=utf-8]
+
+--- unexpected parameters
+$ curl http://localhost:4000/api/tracks?limit=-1&foo=bar
+{"tracks":[{"id":"1","albumId":"1","title":"Midnight Drive","trackNumber":1,"durationMs":214000,"isAvailable":true},{"id":"2","albumId":"1","title":"Signal Lost","trackNumber":2,"durationMs":198000,"isAvailable":true},{"id":"3","albumId":"2","title":"Neon Sky","trackNumber":1,"durationMs":226000,"isAvailable":true},{"id":"4","albumId":null,"title":"Quiet Orbit","trackNumber":null,"durationMs":305000,"isAvailable":true}],"count":4}
+[HTTP 200] [application/json; charset=utf-8]
+
