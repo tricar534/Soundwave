@@ -79,4 +79,26 @@ describe('SW-224: Sensitive Request Logging Protection', () => {
         expect(logData.status).toBe(201);
         expect(logData.durationMs).toBeGreaterThanOrEqual(0);
     });
+
+    it('does not expose sensitive tokens in URL paths', async () => {
+        const logSpy = vi
+            .spyOn(console, 'info')
+            .mockImplementation(() => { });
+
+        const app = createTestApp();
+
+        app.get('/reset/:token', (_req, res) => {
+            res.status(204).end();
+        });
+
+        const response = await request(app)
+            .get('/reset/FAKE_PATH_TOKEN_123');
+
+        expect(response.status).toBe(204);
+
+        const output = logSpy.mock.calls.flat().join(' ');
+
+        expect(output).not.toContain('FAKE_PATH_TOKEN_123');
+    });
+
 });
