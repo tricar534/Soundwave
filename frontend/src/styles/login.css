@@ -76,3 +76,15 @@
     padding: 20px;
   }
 }
+
+/* Task 4: clear, non-sensitive feedback when a signed-out user opens Library. */
+.login-access-notice {
+  width: min(100%, 430px);
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: #312e81;
+  border: 1px solid #818cf8;
+  border-radius: 8px;
+  color: #e0e7ff;
+  line-height: 1.5;
+}
