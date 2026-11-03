@@ -828,6 +828,91 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+
+  // Verify that deleting a track automatically removes its genre relationships.
+  // PostgreSQL should enforce ON DELETE CASCADE without deleting the genre.
+  test("deleting a track cascades to its genre relationships", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Create temporary track and genre records.
+    const track = await prisma.track.create({
+      data: {
+        title: `Cascade Genre Track ${suffix}`,
+        durationMs: 180000,
+      },
+    });
+
+    let genreId: bigint | null = null;
+
+    try {
+      const genre = await prisma.genre.create({
+        data: {
+          name: `Cascade Genre ${suffix}`,
+        },
+      });
+
+      genreId = genre.id;
+
+      // Associate the genre with the track.
+      await prisma.$executeRaw`
+        INSERT INTO track_genres (track_id, genre_id)
+        VALUES (${track.id}, ${genreId})
+      `;
+
+      // Confirm the relationship exists before deleting the track.
+      const beforeDelete = await prisma.$queryRaw<
+        Array<{ track_id: bigint }>
+      >`
+        SELECT track_id
+        FROM track_genres
+        WHERE track_id = ${track.id}
+          AND genre_id = ${genreId}
+      `;
+
+      assert.equal(beforeDelete.length, 1);
+
+      // Delete the track and trigger the cascade.
+      await prisma.track.delete({
+        where: { id: track.id },
+      });
+
+      // Confirm the relationship was automatically removed.
+      const afterDelete = await prisma.$queryRaw<
+        Array<{ track_id: bigint }>
+      >`
+        SELECT track_id
+        FROM track_genres
+        WHERE track_id = ${track.id}
+          AND genre_id = ${genreId}
+      `;
+
+      assert.equal(afterDelete.length, 0);
+
+      // Confirm the genre itself still exists.
+      const remainingGenre = await prisma.genre.findUnique({
+        where: { id: genreId },
+      });
+
+      assert.ok(remainingGenre);
+    } finally {
+      // Clean up temporary records if the test fails early.
+      await prisma.$executeRaw`
+        DELETE FROM track_genres
+        WHERE track_id = ${track.id}
+      `;
+
+      await prisma.track.deleteMany({
+        where: { id: track.id },
+      });
+
+      if (genreId !== null) {
+        await prisma.genre.deleteMany({
+          where: { id: genreId },
+        });
+      }
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
