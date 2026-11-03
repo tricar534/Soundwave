@@ -6,6 +6,7 @@ import readinessRoutes from './routes/readiness.routes';
 import { requestDiagnostics } from './middleware/requestDiagnostics';
 import searchRoutes from './routes/search.routes';
 import authRoutes from './routes/auth.routes';
+import sessionRoutes from './routes/session.routes';
 
 const app = express();
 
@@ -102,5 +103,6 @@ app.use('/ready', readinessRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/session', sessionRoutes);
 
 export default app;
