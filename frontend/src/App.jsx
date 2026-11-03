@@ -16,19 +16,37 @@ function App() {
   const [homeQuery, setHomeQuery] = useState("");
   // In-memory UI state only: no password, token, or session stored in browser storage.
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
+  // The Library is the only protected view for this sprint's frontend guard.
+  // Home and Search remain public, and no React Router is used in this app.
+  const [intendedPage, setIntendedPage] = useState(null);
+
+  function handleNavigate(page) {
+    if (page === "library" && !authenticatedUser) {
+      setIntendedPage("library");
+      setCurrentPage("login");
+      return;
+    }
+
+    // Leaving Sign in cancels an old redirect, so a later login does not
+    // unexpectedly return someone to a page they no longer requested.
+    setIntendedPage(null);
+    setCurrentPage(page);
+  }
 
   async function handleLogin(credentials) {
     const response = await login(credentials);
     // Do not mark a user signed in merely because an HTTP request succeeded.
     const user = extractAuthenticatedUser(response);
     setAuthenticatedUser(user);
-    setCurrentPage("home");
+    setCurrentPage(intendedPage === "library" ? "library" : "home");
+    setIntendedPage(null);
     return response;
   }
 
   function handleLogout() {
     // UI-only logout until the backend exposes an approved session-revocation endpoint.
     setAuthenticatedUser(null);
+    setIntendedPage(null);
     setCurrentPage("login");
   }
 
@@ -48,10 +66,16 @@ function App() {
         />);
 
       case "library":
-        return <LibraryPage />;
+        // Defense in depth if another navigation path sets the page directly.
+        return authenticatedUser ? <LibraryPage /> : (
+          <LoginPage onLogin={handleLogin} accessMessage="Sign in to access your Library." />
+        );
 
       case "login":
-        return <LoginPage onLogin={handleLogin} />;
+        return <LoginPage
+          onLogin={handleLogin}
+          accessMessage={intendedPage === "library" ? "Sign in to access your Library." : ""}
+        />;
 
       case "home":
       default:
@@ -70,7 +94,7 @@ function App() {
     <div className="app">
       <Sidebar
         currentPage={currentPage}
-        onNavigate={setCurrentPage}
+        onNavigate={handleNavigate}
         authenticatedUser={authenticatedUser}
         onLogout={handleLogout}
       />
