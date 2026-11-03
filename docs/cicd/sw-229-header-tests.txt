@@ -1,0 +1,15 @@
+[22m[39m[Soundwave Request] {"requestId":"b1b6a570-3a33-4bfd-905a-5c3201578a6f","method":"GET","path":"/","status":200,"durationMs":1}
+
+[90mstdout[2m | tests/securityHeaders.test.ts[2m > [22m[2mHTTP security headers (SOC 2)[2m > [22m[2mRegression: middleware ordering (AC-05 / AC-06)[2m > [22m[2mkeeps security headers on a 500 error response
+[22m[39m[Soundwave Request] {"requestId":"6a6f384e-0dfd-421e-b648-f161fcde485c","method":"GET","path":"/","status":500,"durationMs":0}
+
+[90mstdout[2m | tests/securityHeaders.test.ts[2m > [22m[2mHTTP security headers (SOC 2)[2m > [22m[2mRegression: middleware ordering (AC-05 / AC-06)[2m > [22m[2mCORS header is present on a normal cross-origin request
+[22m[39m[Soundwave Request] {"requestId":"3d8d1213-b05d-4363-b6d9-55ea13ac1894","method":"GET","path":"/","status":200,"durationMs":0}
+
+ [32m✓[39m tests/securityHeaders.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 159[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (7)[39m
+[2m      Tests [22m [1m[32m59 passed[39m[22m[2m | [22m[33m3 skipped[39m[2m | [22m[90m2 todo[39m[90m (64)[39m
+[2m   Start at [22m 12:52:28
+[2m   Duration [22m 1.02s[2m (import 69%, tests 17%, transform 11%, worker 3%)[22m
+
