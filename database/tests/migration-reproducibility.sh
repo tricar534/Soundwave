@@ -2,6 +2,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SW-152: Support PostgreSQL CLI locally and in GitHub Actions.
+psql() {
+  if [ -n "$(type -P psql)" ]; then
+    command psql "$@"
+  else
+    docker exec -i \
+      -e PGPASSWORD="$PGPASSWORD" \
+      soundwaves-postgres psql "$@"
+  fi
+}
+
 # SW-144: Database Migration Reproducibility Test
 # Runs against a disposable PostgreSQL database in CI.
 
@@ -46,7 +57,29 @@ psql \
 
 CREATED=true
 
-export DATABASE_URL="postgresql://${DB_USER}:${PGPASSWORD}@${DB_HOST}:${DB_PORT}/${TEST_DB}?schema=public"
+export TEST_DB
+
+export DATABASE_URL="$(node -e '
+  const url = new URL(process.env.DATABASE_URL);
+  url.pathname = "/" + process.env.TEST_DB;
+  url.searchParams.set("schema", "public");
+  process.stdout.write(url.toString());
+')"
+# SW-152: Prevent migrations and seeding against the development database.
+node -e '
+  const url = new URL(process.env.DATABASE_URL);
+  const database = decodeURIComponent(url.pathname.slice(1));
+
+  if (
+    database !== process.env.TEST_DB ||
+    !database.startsWith("soundwaves_migration_")
+  ) {
+    console.error("ERROR: Unsafe database target. Stopping.");
+    process.exit(1);
+  }
+
+  console.log("Verified temporary database target:", database);
+'
 
 echo "Applying Prisma migrations..."
 
@@ -92,5 +125,44 @@ if [ "$TABLE_COUNT" -ne 12 ]; then
   echo "ERROR: Database schema validation failed."
   exit 1
 fi
+
+
+# --------------------------------------------------
+# Sprint 4 - SW-152: Clean Database Initialization
+# --------------------------------------------------
+
+# Load demo data into the temporary database.
+# DATABASE_URL already points to the disposable test database.
+echo "Loading Soundwaves seed data..."
+
+npm run db:seed
+
+# Verify that the expected seed records were created.
+echo "Verifying initialized seed data..."
+
+SEED_OK=$(psql \
+  -h "$DB_HOST" \
+  -p "$DB_PORT" \
+  -U "$DB_USER" \
+  -d "$TEST_DB" \
+  -v ON_ERROR_STOP=1 \
+  -tAc "
+    SELECT
+      (SELECT COUNT(*) FROM roles WHERE name IN ('USER', 'ADMIN')) = 2
+      AND (SELECT COUNT(*) FROM users) = 2
+      AND (SELECT COUNT(*) FROM artists) = 3
+      AND (SELECT COUNT(*) FROM genres) = 3
+      AND (SELECT COUNT(*) FROM albums) = 2
+      AND (SELECT COUNT(*) FROM tracks) = 15
+      AND (SELECT COUNT(*) FROM media_files) = 4;
+  ")
+
+if [ "$SEED_OK" != "t" ]; then
+  echo "ERROR: Database seed verification failed."
+  exit 1
+fi
+
+echo "Seed initialization verification passed."
+
 
 echo "Migration reproducibility test passed."
