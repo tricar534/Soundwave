@@ -749,6 +749,85 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that an artist cannot be deleted while linked to a track.
+  // PostgreSQL should enforce ON DELETE RESTRICT for track-artist relationships.
+  test("artist deletion is restricted when linked to a track", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Create a temporary artist.
+    const artist = await prisma.artist.create({
+      data: {
+        name: `Restriction Test Artist ${suffix}`,
+      },
+    });
+
+    let trackId: bigint | null = null;
+
+    try {
+      // Create a temporary track.
+      const track = await prisma.track.create({
+        data: {
+          title: `Restriction Test Track ${suffix}`,
+          durationMs: 180000,
+        },
+      });
+
+      trackId = track.id;
+
+      // Associate the artist with the track.
+      await prisma.$executeRaw`
+        INSERT INTO track_artists
+          (track_id, artist_id, artist_order)
+        VALUES
+          (${trackId}, ${artist.id}, 1)
+      `;
+
+      // Deleting an artist with an existing relationship must fail.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          DELETE FROM artists
+          WHERE id = ${artist.id}
+        `;
+      }, /23001/); // PostgreSQL RESTRICT constraint violation
+
+      // Verify that the artist still exists.
+      const remainingArtist = await prisma.artist.findUnique({
+        where: { id: artist.id },
+      });
+
+      assert.ok(remainingArtist);
+
+      // Verify that the relationship remains intact.
+      const relationships = await prisma.$queryRaw<
+        Array<{ artist_id: bigint }>
+      >`
+        SELECT artist_id
+        FROM track_artists
+        WHERE track_id = ${trackId}
+          AND artist_id = ${artist.id}
+      `;
+
+      assert.equal(relationships.length, 1);
+    } finally {
+      // Clean up temporary records in relationship order.
+      if (trackId !== null) {
+        await prisma.$executeRaw`
+          DELETE FROM track_artists
+          WHERE track_id = ${trackId}
+            AND artist_id = ${artist.id}
+        `;
+
+        await prisma.track.deleteMany({
+          where: { id: trackId },
+        });
+      }
+
+      await prisma.artist.deleteMany({
+        where: { id: artist.id },
+      });
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
