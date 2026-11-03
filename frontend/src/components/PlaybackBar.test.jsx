@@ -306,9 +306,15 @@ describe("PlaybackBar", () => {
       pages.forEach((page) => {
         fireEvent.click(screen.getByRole("button", { name: page }));
 
-        expect(
-          screen.getByRole("button", { name: page })
-        ).toHaveAttribute("aria-current", "page");
+        if (page === "Library") {
+          // Task 4: Library redirects guests to Sign in; PlaybackBar stays mounted.
+          expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+          expect(screen.getByText("Sign in to access your Library.")).toBeInTheDocument();
+        } else {
+          expect(
+            screen.getByRole("button", { name: page })
+          ).toHaveAttribute("aria-current", "page");
+        }
         expect(getPlaybackBar()).toBeInTheDocument();
       });
     });
