@@ -111,6 +111,370 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that a user cannot reference a role that does not exist.
+  // PostgreSQL should reject the insert due to the role_id foreign key.
+  test("user cannot reference a nonexistent role", async () => {
+    const suffix = Date.now();
+    const username = `invalid_role_${suffix}`;
+    const email = `invalid_role_${suffix}@example.com`;
+
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO users
+          (role_id, username, email, password_hash,
+          is_active, created_at, updated_at)
+        VALUES
+          (999999999, ${username}, ${email},
+          'test_hash', TRUE, NOW(), NOW())
+      `;
+    }, /23503/); // PostgreSQL foreign key violation error code
+  });
+
+  // Verify that a session cannot belong to a nonexistent user.
+  // PostgreSQL should reject the insert due to the user_id foreign key.
+  test("session cannot reference a nonexistent user", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const tokenHash = `invalid_user_session_${suffix}`;
+
+    await assert.rejects(async () => {
+      await prisma.$executeRaw`
+        INSERT INTO sessions
+          (user_id, token_hash, expires_at, created_at)
+        VALUES
+          (999999999, ${tokenHash},
+           NOW() + INTERVAL '1 day', NOW())
+      `;
+    }, /23503/); // PostgreSQL foreign key violation error code
+  });
+
+  // Verify that two sessions cannot use the same token hash.
+  // PostgreSQL should reject duplicate values due to the unique constraint.
+  test("duplicate session token hashes are rejected", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const username = `session_unique_${suffix}`;
+    const email = `session_unique_${suffix}@example.com`;
+    const tokenHash = `duplicate_token_${suffix}`;
+
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Create the first session with a unique token hash.
+      await prisma.$executeRaw`
+        INSERT INTO sessions
+          (user_id, token_hash, expires_at, created_at)
+        VALUES
+          (${userId}, ${tokenHash},
+           NOW() + INTERVAL '1 day', NOW())
+      `;
+
+      // A second session with the same token hash must be rejected.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO sessions
+            (user_id, token_hash, expires_at, created_at)
+          VALUES
+            (${userId}, ${tokenHash},
+             NOW() + INTERVAL '1 day', NOW())
+        `;
+      }, /23505/); // PostgreSQL unique constraint violation
+    } finally {
+      // Remove temporary test records.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
+  // Verify that a role cannot be deleted while a user is assigned to it.
+  // PostgreSQL should restrict deletion to preserve the user-role relationship.
+  test("role deletion is restricted when assigned to a user", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const roleName = `test_role_${suffix}`;
+    const username = `role_user_${suffix}`;
+    const email = `role_user_${suffix}@example.com`;
+
+    // Create a temporary role for the constraint test.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO roles (name)
+      VALUES (${roleName})
+      RETURNING id
+    `;
+
+    const roleId = roles[0].id;
+
+    try {
+      // Create a user assigned to the temporary role.
+      await prisma.$executeRaw`
+        INSERT INTO users
+          (role_id, username, email, password_hash,
+           is_active, created_at, updated_at)
+        VALUES
+          (${roleId}, ${username}, ${email},
+           'test_hash', TRUE, NOW(), NOW())
+      `;
+
+      // Deleting an assigned role must fail.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          DELETE FROM roles
+          WHERE id = ${roleId}
+        `;
+      }, /23001/); // PostgreSQL restrict constraint violation
+
+      // Confirm the failed deletion preserved the role.
+      const remainingRoles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id FROM roles WHERE id = ${roleId}
+      `;
+
+      assert.equal(remainingRoles.length, 1);
+    } finally {
+      // Clean up temporary records in relationship order.
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE role_id = ${roleId} AND email = ${email}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM roles
+        WHERE id = ${roleId}
+      `;
+    }
+  });
+
+  // Verify that deleting a user automatically removes their sessions.
+  // PostgreSQL should cascade the deletion through the user_id foreign key.
+  test("deleting a user cascades to their sessions", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const username = `cascade_user_${suffix}`;
+    const email = `cascade_user_${suffix}@example.com`;
+    const tokenHash = `cascade_session_${suffix}`;
+
+    // Retrieve the existing USER role.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    // Create a temporary user.
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Create a session belonging to the temporary user.
+      await prisma.$executeRaw`
+        INSERT INTO sessions
+          (user_id, token_hash, expires_at, created_at)
+        VALUES
+          (${userId}, ${tokenHash},
+           NOW() + INTERVAL '1 day', NOW())
+      `;
+
+      // Verify that the session exists before deletion.
+      const beforeDelete = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      assert.equal(beforeDelete.length, 1);
+
+      // Delete the user and verify the session is also removed.
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+
+      const afterDelete = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      assert.equal(afterDelete.length, 0);
+    } finally {
+      // Clean up temporary records if the test fails early.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
+  // Verify that a session must expire after its creation time.
+  // PostgreSQL should reject sessions with invalid expiration timestamps.
+  test("session expiration must be after creation", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const username = `expiry_user_${suffix}`;
+    const email = `expiry_user_${suffix}@example.com`;
+    const tokenHash = `invalid_expiry_${suffix}`;
+
+    // Retrieve the existing USER role.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    // Create a temporary user for the session.
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Expiration before creation must violate the CHECK constraint.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO sessions
+            (user_id, token_hash, expires_at, created_at)
+          VALUES
+            (${userId}, ${tokenHash},
+             NOW() - INTERVAL '1 hour', NOW())
+        `;
+      }, /23514/); // PostgreSQL check constraint violation
+
+      // Verify that the invalid session was not stored.
+      const sessions = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE token_hash = ${tokenHash}
+      `;
+
+      assert.equal(sessions.length, 0);
+    } finally {
+      // Clean up temporary test records.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
+  // Verify that a session cannot be revoked before it was created.
+  // PostgreSQL should reject invalid revocation timestamps.
+  test("session revocation cannot occur before creation", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const username = `revocation_user_${suffix}`;
+    const email = `revocation_user_${suffix}@example.com`;
+    const tokenHash = `invalid_revocation_${suffix}`;
+
+    // Retrieve the existing USER role.
+    const roles = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      SELECT id
+      FROM roles
+      WHERE name = 'USER'
+      LIMIT 1
+    `;
+
+    assert.equal(roles.length, 1);
+
+    // Create a temporary user for the session.
+    const users = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO users
+        (role_id, username, email, password_hash,
+         is_active, created_at, updated_at)
+      VALUES
+        (${roles[0].id}, ${username}, ${email},
+         'test_hash', TRUE, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const userId = users[0].id;
+
+    try {
+      // Revocation before creation must violate the CHECK constraint.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO sessions
+            (user_id, token_hash, expires_at,
+             revoked_at, created_at)
+          VALUES
+            (${userId}, ${tokenHash},
+             NOW() + INTERVAL '1 day',
+             NOW() - INTERVAL '1 hour', NOW())
+        `;
+      }, /23514/); // PostgreSQL CHECK constraint violation
+
+      // Verify that the invalid session was not stored.
+      const sessions = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        SELECT id
+        FROM sessions
+        WHERE token_hash = ${tokenHash}
+      `;
+
+      assert.equal(sessions.length, 0);
+    } finally {
+      // Clean up temporary test records.
+      await prisma.$executeRaw`
+        DELETE FROM sessions
+        WHERE user_id = ${userId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM users
+        WHERE id = ${userId}
+      `;
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
