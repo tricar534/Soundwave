@@ -63,3 +63,71 @@ describe("Sprint 4 Task 2 - frontend authentication API", () => {
       .rejects.toThrow("invalid response");
   });
 });
+
+
+// Independent regression task: do not reveal backend response bodies and do
+// not alter login credentials or place them in request URLs.
+describe("Sprint 4 - authentication API regression coverage", () => {
+  let fetchMock;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([502, 503])("returns a generic, safe error for HTTP %i without parsing backend details", async (status) => {
+    const json = vi.fn().mockResolvedValue({ message: "private service internals" });
+    fetchMock.mockResolvedValue({ ok: false, status, json });
+    await expect(login({ identifier: "listener", password: "synthetic-only" })).rejects.toMatchObject({
+      name: "LoginRequestError",
+      status,
+      message: "Sign-in failed. Please try again later.",
+    });
+    expect(json).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [[]],
+    [true],
+    [42],
+    [{ error: { internal: "private message" } }],
+  ])("rejects unexpected successful response shapes with an approved safe message", async (payload) => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => payload });
+    await expect(login({ identifier: "listener", password: "synthetic-only" }))
+      .rejects.toMatchObject({
+        name: "LoginRequestError",
+        message: "The authentication server returned an invalid response.",
+      });
+  });
+
+  it("keeps the password unchanged in JSON and never sends credentials in the URL", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ user: { id: "u-123" } }) });
+    await login({ identifier: "  test listener  ", password: "  spaces-are-part-of-the-password  " });
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:4000/api/auth/login");
+    expect(url).not.toContain("spaces-are-part-of-the-password");
+    expect(JSON.parse(options.body)).toEqual({
+      identifier: "test listener",
+      password: "  spaces-are-part-of-the-password  ",
+    });
+  });
+
+  it("does not write a response token into browser storage", async () => {
+    const localSet = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({ user: { id: "u-123" }, token: "synthetic-response-token" }),
+      });
+      const response = await login({ identifier: "listener", password: "synthetic-only" });
+      expect(response.user.id).toBe("u-123");
+      expect(localSet).not.toHaveBeenCalled();
+    } finally {
+      localSet.mockRestore();
+    }
+  });
+});
