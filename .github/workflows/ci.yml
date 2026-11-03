@@ -450,7 +450,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: false
-          tags: soundwave-backend:ci
+          tags: soundwave-backend:${{ env.BUILD_VERSION }}
 
 
   # ------------------------------------------------------------
