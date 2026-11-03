@@ -1,0 +1,68 @@
+
+name: SW-168 Docker Build Failure Detection
+
+on:
+  push:
+    branches:
+      - sw-168-docker-build-failure-detection
+
+  pull_request:
+    branches:
+      - sw-164-docker-build-validation
+
+env:
+  SIMULATE_FAILURE: "false"
+
+jobs:
+  docker-failure-test:
+    name: Docker Build Failure Detection
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create intentionally invalid Dockerfile
+        if: env.SIMULATE_FAILURE == 'true'
+        run: |
+          echo "FROM soundwave-sw168-intentionally-missing:invalid" > backend/Dockerfile.sw168-test
+
+      - name: Run intentionally failing Docker build
+        id: failure-build
+        if: env.SIMULATE_FAILURE == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.sw168-test
+          push: false
+          tags: soundwave-backend:sw168-failure-test
+
+      - name: Run valid Docker build
+        id: recovery-build
+        if: env.SIMULATE_FAILURE == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: soundwave-backend:sw168-recovery-test
+
+      - name: Report Docker failure and recovery results
+        if: always()
+        shell: bash
+        env:
+          FAILURE_OUTCOME: ${{ steps.failure-build.outcome }}
+          RECOVERY_OUTCOME: ${{ steps.recovery-build.outcome }}
+        run: |
+          echo "## SW-168 Docker Build Failure Detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Simulation mode: $SIMULATE_FAILURE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Intentional failure build: $FAILURE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Recovery build: $RECOVERY_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
