@@ -96,7 +96,7 @@ describe("Sprint 4 Task 2 - login API interaction", () => {
     expect(onLogin).toHaveBeenCalledTimes(1);
 
     resolveLogin({ user: { id: "test-user" } });
-    expect(await screen.findByRole("status")).toHaveTextContent("Login request accepted");
+    expect(await screen.findByRole("status")).toHaveTextContent("Sign-in successful");
     expect(screen.getByLabelText("Password")).toHaveValue("");
   });
 
