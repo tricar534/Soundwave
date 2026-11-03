@@ -474,6 +474,75 @@ describe("Soundwaves database validation", () => {
       `;
     }
   });
+  
+  //Sprint 4 - SW-151
+  // Verify that deleting an album does not delete its tracks.
+  // PostgreSQL should set album_id to NULL through ON DELETE SET NULL.
+  test("deleting an album preserves tracks and clears album reference", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Create a temporary album.
+    const albums = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO albums (title, created_at, updated_at)
+      VALUES (${`Test Album ${suffix}`}, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const albumId = albums[0].id;
+    let trackId: bigint | null = null;
+
+    try {
+      // Create a track associated with the temporary album.
+      const tracks = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        INSERT INTO tracks
+          (album_id, title, duration_ms, is_available,
+           created_at, updated_at)
+        VALUES
+          (${albumId}, ${`Test Track ${suffix}`},
+           180000, TRUE, NOW(), NOW())
+        RETURNING id
+      `;
+
+      trackId = tracks[0].id;
+
+      // Verify the track initially references the album.
+      const beforeDelete = await prisma.$queryRaw<
+        Array<{ album_id: bigint | null }>
+      >`
+        SELECT album_id FROM tracks WHERE id = ${trackId}
+      `;
+
+      assert.equal(beforeDelete.length, 1);
+      assert.equal(beforeDelete[0].album_id, albumId);
+
+      // Delete the album.
+      await prisma.$executeRaw`
+        DELETE FROM albums WHERE id = ${albumId}
+      `;
+
+      // Verify the track still exists without an album reference.
+      const afterDelete = await prisma.$queryRaw<
+        Array<{ album_id: bigint | null }>
+      >`
+        SELECT album_id FROM tracks WHERE id = ${trackId}
+      `;
+
+      assert.equal(afterDelete.length, 1);
+      assert.equal(afterDelete[0].album_id, null);
+    } finally {
+      // Remove temporary test records.
+      if (trackId !== null) {
+        await prisma.$executeRaw`
+          DELETE FROM tracks WHERE id = ${trackId}
+        `;
+      }
+
+      await prisma.$executeRaw`
+        DELETE FROM albums WHERE id = ${albumId}
+      `;
+    }
+  });
+
 
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
