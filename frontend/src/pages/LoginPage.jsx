@@ -8,7 +8,7 @@ import "../styles/login.css";
  * The parent App owns short-lived authentication UI state and logout.
  * This component never stores passwords or authentication tokens.
  */
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, accessMessage = "" }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -62,6 +62,8 @@ function LoginPage({ onLogin }) {
         description="Enter your Soundwave account details."
       />
 
+      {accessMessage && <p className="login-access-notice" role="status">{accessMessage}</p>}
+
       <div className="login-panel">
         <form className="login-form" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
           <div className="login-field">
@@ -74,7 +76,7 @@ function LoginPage({ onLogin }) {
               value={identifier}
               onChange={(event) => {
                 setIdentifier(event.target.value);
-                setErrors((current) => ({ ...current, identifier: "" }));
+                setErrors((current) => ({ ...current, identifier: "", form: "" }));
                 setNotice("");
               }}
               aria-invalid={Boolean(errors.identifier)}
@@ -99,7 +101,7 @@ function LoginPage({ onLogin }) {
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
-                setErrors((current) => ({ ...current, password: "" }));
+                setErrors((current) => ({ ...current, password: "", form: "" }));
                 setNotice("");
               }}
               aria-invalid={Boolean(errors.password)}

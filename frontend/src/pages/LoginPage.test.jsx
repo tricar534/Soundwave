@@ -123,3 +123,45 @@ describe("Sprint 4 Task 2 - login API interaction", () => {
     expect(screen.queryByText(/private internal detail/i)).not.toBeInTheDocument();
   });
 });
+
+
+describe("Sprint 4 Task 4 - access notices and safe retry behavior", () => {
+  function fillAndSubmit() {
+    fireEvent.change(screen.getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "synthetic-only" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  }
+
+  it("provides a clear, accessible reason for requiring sign-in", () => {
+    render(<LoginPage onLogin={vi.fn()} accessMessage="Sign in to access your Library." />);
+    expect(screen.getByRole("status")).toHaveTextContent("Sign in to access your Library.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("clears an outdated authentication error when inputs are edited", async () => {
+    const onLogin = vi.fn().mockRejectedValue(new LoginRequestError("Incorrect email/username or password.", 401));
+    render(<LoginPage onLogin={onLogin} />);
+    fillAndSubmit();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "corrected-password" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("allows retry after a failed login without keeping the old error", async () => {
+    const onLogin = vi.fn()
+      .mockRejectedValueOnce(new LoginRequestError("Incorrect email/username or password.", 401))
+      .mockResolvedValueOnce({ user: { id: "u-123" } });
+    render(<LoginPage onLogin={onLogin} />);
+    fillAndSubmit();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "second-attempt" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Sign-in successful.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(onLogin).toHaveBeenCalledTimes(2);
+  });
+});
