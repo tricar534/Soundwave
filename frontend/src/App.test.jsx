@@ -1,5 +1,5 @@
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import * as api from "./services/api";
@@ -96,5 +96,27 @@ describe("App search navigation", () => {
     ).toHaveValue("Real");
 
     expect(await screen.findByText("Real Track")).toBeInTheDocument();
+  });
+});
+
+
+describe("Sprint 4 Task 2 - App login API wiring", () => {
+  it("submits the login page to the centralized auth API service", async () => {
+    vi.mocked(api.login).mockResolvedValue({ user: { id: "test-user" } });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    const main = screen.getByRole("main");
+
+    fireEvent.change(within(main).getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(within(main).getByLabelText("Password"), {
+      target: { value: "synthetic-only" },
+    });
+    fireEvent.click(within(main).getByRole("button", { name: "Sign in" }));
+
+    expect(api.login).toHaveBeenCalledWith({ identifier: "listener", password: "synthetic-only" });
+    expect(await within(main).findByRole("status")).toHaveTextContent("Login request accepted");
   });
 });

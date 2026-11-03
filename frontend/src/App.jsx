@@ -4,6 +4,7 @@ import PlaybackBar from "./components/PlaybackBar";
 import HomePage from "./pages/HomePage";
 import SearchPage from "./pages/SearchPage";
 import LibraryPage from "./pages/LibraryPage";
+import { login } from "./services/api";
 import LoginPage from "./pages/LoginPage";
 import "./styles/app.css";
 
@@ -32,7 +33,7 @@ function App() {
         return <LibraryPage />;
 
       case "login":
-        return <LoginPage />;
+        return <LoginPage onLogin={login} />;
 
       case "home":
       default:
