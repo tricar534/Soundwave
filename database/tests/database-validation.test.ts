@@ -679,6 +679,76 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that an album cannot have the same artist relationship twice.
+  // PostgreSQL should enforce the composite primary key.
+  test("duplicate album-artist relationships are rejected", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Create temporary album and artist records.
+    const albums = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO albums (title, created_at, updated_at)
+      VALUES (${`Artist Test Album ${suffix}`}, NOW(), NOW())
+      RETURNING id
+    `;
+
+    const albumId = albums[0].id;
+    let artistId: bigint | null = null;
+
+    try {
+      const artists = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        INSERT INTO artists (name, created_at, updated_at)
+        VALUES (${`Test Artist ${suffix}`}, NOW(), NOW())
+        RETURNING id
+      `;
+
+      artistId = artists[0].id;
+
+      // Create the first valid album-artist relationship.
+      await prisma.$executeRaw`
+        INSERT INTO album_artists (album_id, artist_id)
+        VALUES (${albumId}, ${artistId})
+      `;
+
+      // Duplicate relationships must violate the composite primary key.
+      await assert.rejects(async () => {
+        await prisma.$executeRaw`
+          INSERT INTO album_artists (album_id, artist_id)
+          VALUES (${albumId}, ${artistId})
+        `;
+      }, /23505/); // PostgreSQL unique constraint violation
+
+      // Verify that only one relationship exists.
+      const relationships = await prisma.$queryRaw<
+        Array<{ album_id: bigint }>
+      >`
+        SELECT album_id
+        FROM album_artists
+        WHERE album_id = ${albumId}
+          AND artist_id = ${artistId}
+      `;
+
+      assert.equal(relationships.length, 1);
+    } finally {
+      // Clean up temporary records in relationship order.
+      await prisma.$executeRaw`
+        DELETE FROM album_artists
+        WHERE album_id = ${albumId}
+      `;
+
+      await prisma.$executeRaw`
+        DELETE FROM albums
+        WHERE id = ${albumId}
+      `;
+
+      if (artistId !== null) {
+        await prisma.$executeRaw`
+          DELETE FROM artists
+          WHERE id = ${artistId}
+        `;
+      }
+    }
+  });
+
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
       await prisma.$executeRaw`
