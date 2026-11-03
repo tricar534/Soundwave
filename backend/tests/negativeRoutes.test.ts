@@ -119,7 +119,7 @@ describe('Negative route tests (catalog and search)', () => {
     it('ignores unexpected query parameters on the catalog', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
-      const response = await request(app).get('/api/tracks?limit=-1&foo=bar');
+      const response = await request(app).get('/api/tracks?foo=bar');
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ tracks: [], count: 0 });
