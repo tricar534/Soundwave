@@ -165,3 +165,85 @@ describe("Sprint 4 Task 4 - access notices and safe retry behavior", () => {
     expect(onLogin).toHaveBeenCalledTimes(2);
   });
 });
+
+
+// Separate regression task: accessibility, field recovery, and safe retry.
+describe("Sprint 4 - login form regression coverage", () => {
+  it("connects required-field errors to inputs using accessible descriptions", () => {
+    const onLogin = vi.fn();
+    render(<LoginPage onLogin={onLogin} />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const identifier = screen.getByRole("textbox", { name: "Email or username" });
+    const password = screen.getByLabelText("Password");
+    expect(identifier).toHaveAttribute("aria-invalid", "true");
+    expect(identifier).toHaveAttribute("aria-describedby", "login-identifier-error");
+    expect(password).toHaveAttribute("aria-invalid", "true");
+    expect(password).toHaveAttribute("aria-describedby", "login-password-error");
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    expect(onLogin).not.toHaveBeenCalled();
+
+    fireEvent.change(identifier, { target: { value: "listener" } });
+    expect(identifier).toHaveAttribute("aria-invalid", "false");
+    expect(identifier).not.toHaveAttribute("aria-describedby");
+    expect(password).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("preserves the identifier but clears a rejected password and form error on identifier edit", async () => {
+    const onLogin = vi.fn().mockRejectedValue(
+      new LoginRequestError("Incorrect email/username or password.", 401),
+    );
+    render(<LoginPage onLogin={onLogin} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "synthetic-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    expect(screen.getByRole("textbox", { name: "Email or username" })).toHaveValue("listener");
+    expect(screen.getByLabelText("Password")).toHaveValue("");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "corrected-listener" },
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+  });
+
+  it("replaces a previous rate-limit message with the latest API failure after retry", async () => {
+    const onLogin = vi.fn()
+      .mockRejectedValueOnce(new LoginRequestError("Too many login attempts. Please try again later.", 429))
+      .mockRejectedValueOnce(new LoginRequestError("Incorrect email/username or password.", 401));
+    render(<LoginPage onLogin={onLogin} />);
+    const identifier = screen.getByRole("textbox", { name: "Email or username" });
+    const password = screen.getByLabelText("Password");
+    fireEvent.change(identifier, { target: { value: "listener" } });
+    fireEvent.change(password, { target: { value: "synthetic-first" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many login attempts");
+
+    fireEvent.change(password, { target: { value: "synthetic-second" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    expect(screen.queryByText("Too many login attempts. Please try again later.")).not.toBeInTheDocument();
+    expect(onLogin).toHaveBeenCalledTimes(2);
+  });
+
+  it("supports submitting a valid form using the form submit event", async () => {
+    const onLogin = vi.fn().mockResolvedValue({ user: { id: "u-789" } });
+    const { container } = render(<LoginPage onLogin={onLogin} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "synthetic-password" },
+    });
+    fireEvent.submit(container.querySelector("form"));
+
+    expect(onLogin).toHaveBeenCalledWith({ identifier: "listener", password: "synthetic-password" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Sign-in successful.");
+  });
+});
