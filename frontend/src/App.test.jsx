@@ -1,5 +1,5 @@
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import * as api from "./services/api";
@@ -22,6 +22,7 @@ vi.mock("./services/api", async (importOriginal) => {
 beforeEach(() => {
   mockTracks.success();
   vi.mocked(api.getHealth).mockResolvedValue({ status: "ok" });
+  vi.mocked(api.login).mockReset();
 });
 
 describe("App search navigation", () => {
@@ -298,5 +299,81 @@ describe("Sprint 4 Task 4 - protected navigation and authentication errors", () 
     openLibraryAsGuest();
     expect(screen.getByRole("status")).toHaveTextContent("Sign in to access your Library.");
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  });
+});
+
+
+// New Jira testing task: cross-feature regression scenarios not covered by
+// the original login, state, and protected-navigation implementation tests.
+describe("Sprint 4 - authentication workflow regression coverage", () => {
+  function requestLibraryAndSubmit(password = "synthetic-first") {
+    fireEvent.click(screen.getByRole("button", { name: "Library" }));
+    const main = screen.getByRole("main");
+    fireEvent.change(within(main).getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(within(main).getByLabelText("Password"), {
+      target: { value: password },
+    });
+    fireEvent.click(within(main).getByRole("button", { name: "Sign in" }));
+    return main;
+  }
+
+  it("keeps Library protected after invalid credentials, then opens it after a corrected retry", async () => {
+    vi.mocked(api.login)
+      .mockRejectedValueOnce(new api.LoginRequestError("Incorrect email/username or password.", 401))
+      .mockResolvedValueOnce({ user: { id: "u-123", name: "Alice" } });
+    render(<App />);
+    const main = requestLibraryAndSubmit();
+
+    expect(await within(main).findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    expect(within(main).getByRole("status")).toHaveTextContent("Sign in to access your Library.");
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+
+    fireEvent.change(within(main).getByLabelText("Password"), {
+      target: { value: "synthetic-second" },
+    });
+    fireEvent.click(within(main).getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("heading", { name: "Your Library" })).toBeInTheDocument();
+    expect(screen.getByText("Signed in as Alice")).toBeInTheDocument();
+    expect(api.login).toHaveBeenCalledTimes(2);
+    expect(api.login).toHaveBeenNthCalledWith(2, { identifier: "listener", password: "synthetic-second" });
+  });
+
+  it("never opens protected content while the login request is still pending", async () => {
+    let resolveLogin;
+    vi.mocked(api.login).mockImplementation(() => new Promise((resolve) => {
+      resolveLogin = resolve;
+    }));
+    render(<App />);
+    const main = requestLibraryAndSubmit();
+
+    expect(within(main).getByRole("button", { name: "Signing in..." })).toBeDisabled();
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveLogin({ user: { id: "u-456", username: "late-listener" } });
+    });
+    expect(screen.getByRole("heading", { name: "Your Library" })).toBeInTheDocument();
+    expect(screen.getByText("Signed in as late-listener")).toBeInTheDocument();
+  });
+
+  it("rejects a success-shaped API payload without a user and keeps public pages usable", async () => {
+    vi.mocked(api.login).mockResolvedValue({ ok: true, token: "synthetic-token" });
+    render(<App />);
+    requestLibraryAndSubmit();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("invalid user response");
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("synthetic-token");
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByPlaceholderText("Search Soundwave")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Home" }));
+    expect(screen.getByRole("searchbox", { name: "Search music" })).toBeInTheDocument();
   });
 });
