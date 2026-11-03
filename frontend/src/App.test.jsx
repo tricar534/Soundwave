@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe("App search navigation", () => {
   // SW-220: Verify unfinished Home searches survive navigation.
-  it("preserves Home search input after visiting Library", () => {
+  it("preserves Home search input after visiting Search", () => {
     render(<App />);
 
     const homeInput = screen.getByRole("searchbox", {
@@ -39,7 +39,7 @@ describe("App search navigation", () => {
     });
 
     // Leave Home and return.
-    fireEvent.click(screen.getByRole("button", { name: "Library" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.click(screen.getByRole("button", { name: "Home" }));
 
     // App should restore the unfinished search draft.
@@ -208,5 +208,95 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
     render(<App />);
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
+  });
+});
+
+
+describe("Sprint 4 Task 4 - protected navigation and authentication errors", () => {
+  function openLibraryAsGuest() {
+    fireEvent.click(screen.getByRole("button", { name: "Library" }));
+  }
+
+  function submitLogin() {
+    const main = screen.getByRole("main");
+    fireEvent.change(within(main).getByRole("textbox", { name: "Email or username" }), {
+      target: { value: "listener" },
+    });
+    fireEvent.change(within(main).getByLabelText("Password"), {
+      target: { value: "synthetic-only" },
+    });
+    fireEvent.click(within(main).getByRole("button", { name: "Sign in" }));
+  }
+
+  it("redirects a signed-out visitor away from Library and explains why", () => {
+    render(<App />);
+    openLibraryAsGuest();
+
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Sign in to access your Library.");
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
+  });
+
+  it("returns to Library after successful login from the protected destination", async () => {
+    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", username: "listener" } });
+    render(<App />);
+    openLibraryAsGuest();
+    submitLogin();
+
+    expect(await screen.findByRole("heading", { name: "Your Library" })).toBeInTheDocument();
+    expect(screen.getByText("Signed in as listener")).toBeInTheDocument();
+    expect(screen.queryByText("Sign in to access your Library.")).not.toBeInTheDocument();
+  });
+
+  it("keeps Library inaccessible and displays a safe message on invalid credentials", async () => {
+    vi.mocked(api.login).mockRejectedValue(new api.LoginRequestError("Incorrect email/username or password.", 401));
+    render(<App />);
+    openLibraryAsGuest();
+    submitLogin();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email/username or password.");
+    expect(screen.getByRole("status")).toHaveTextContent("Sign in to access your Library.");
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  });
+
+  it("does not leak backend details when authentication fails", async () => {
+    vi.mocked(api.login).mockRejectedValue(new Error("secret backend stack trace"));
+    render(<App />);
+    openLibraryAsGuest();
+    submitLogin();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign-in unavailable. Please try again.");
+    expect(document.body.textContent).not.toContain("secret backend stack trace");
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+  });
+
+  it("cancels the Library redirect when the guest navigates to public pages", async () => {
+    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    render(<App />);
+    openLibraryAsGuest();
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByPlaceholderText("Search Soundwave")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Home" }));
+    expect(screen.getByRole("searchbox", { name: "Search music" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(screen.queryByText("Sign in to access your Library.")).not.toBeInTheDocument();
+    submitLogin();
+    expect(await screen.findByText("Signed in as Alice")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search music" })).toBeInTheDocument();
+  });
+
+  it("blocks Library access again after local logout", async () => {
+    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    render(<App />);
+    openLibraryAsGuest();
+    submitLogin();
+    expect(await screen.findByRole("heading", { name: "Your Library" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
+    openLibraryAsGuest();
+    expect(screen.getByRole("status")).toHaveTextContent("Sign in to access your Library.");
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
   });
 });
