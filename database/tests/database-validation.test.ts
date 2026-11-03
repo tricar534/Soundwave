@@ -474,7 +474,7 @@ describe("Soundwaves database validation", () => {
       `;
     }
   });
-  
+
   //Sprint 4 - SW-151
   // Verify that deleting an album does not delete its tracks.
   // PostgreSQL should set album_id to NULL through ON DELETE SET NULL.
@@ -543,6 +543,74 @@ describe("Soundwaves database validation", () => {
     }
   });
 
+  // Verify that deleting artwork does not delete its associated album.
+  // PostgreSQL should set artwork_id to NULL through ON DELETE SET NULL.
+  test("deleting artwork preserves albums and clears artwork reference", async () => {
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const filePath = `/test/artwork-${suffix}.png`;
+
+    // Create a temporary artwork record.
+    const artworks = await prisma.$queryRaw<Array<{ id: bigint }>>`
+      INSERT INTO artwork
+        (file_path, file_name, media_type, created_at)
+      VALUES
+        (${filePath}, 'test-artwork.png', 'image/png', NOW())
+      RETURNING id
+    `;
+
+    const artworkId = artworks[0].id;
+    let albumId: bigint | null = null;
+
+    try {
+      // Create an album referencing the temporary artwork.
+      const albums = await prisma.$queryRaw<Array<{ id: bigint }>>`
+        INSERT INTO albums
+          (title, artwork_id, created_at, updated_at)
+        VALUES
+          (${`Artwork Test Album ${suffix}`},
+           ${artworkId}, NOW(), NOW())
+        RETURNING id
+      `;
+
+      albumId = albums[0].id;
+
+      // Verify the album initially references the artwork.
+      const beforeDelete = await prisma.$queryRaw<
+        Array<{ artwork_id: bigint | null }>
+      >`
+        SELECT artwork_id FROM albums WHERE id = ${albumId}
+      `;
+
+      assert.equal(beforeDelete.length, 1);
+      assert.equal(beforeDelete[0].artwork_id, artworkId);
+
+      // Delete the artwork record.
+      await prisma.$executeRaw`
+        DELETE FROM artwork WHERE id = ${artworkId}
+      `;
+
+      // Verify the album still exists without an artwork reference.
+      const afterDelete = await prisma.$queryRaw<
+        Array<{ artwork_id: bigint | null }>
+      >`
+        SELECT artwork_id FROM albums WHERE id = ${albumId}
+      `;
+
+      assert.equal(afterDelete.length, 1);
+      assert.equal(afterDelete[0].artwork_id, null);
+    } finally {
+      // Clean up temporary test records.
+      if (albumId !== null) {
+        await prisma.$executeRaw`
+          DELETE FROM albums WHERE id = ${albumId}
+        `;
+      }
+
+      await prisma.$executeRaw`
+        DELETE FROM artwork WHERE id = ${artworkId}
+      `;
+    }
+  });
 
   test("track cannot reference a nonexistent album", async () => {
     await assert.rejects(async () => {
