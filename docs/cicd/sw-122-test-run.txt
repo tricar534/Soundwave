@@ -1,0 +1,8 @@
+
+ [32m✓[39m tests/auth.routes.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 895[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m6 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (7)[39m
+[2m      Tests [22m [1m[32m53 passed[39m[22m[2m | [22m[33m3 skipped[39m[2m | [22m[90m2 todo[39m[90m (58)[39m
+[2m   Start at [22m 21:08:00
+[2m   Duration [22m 2.04s[2m (import 58%, tests 26%, transform 14%, worker 1%)[22m
+

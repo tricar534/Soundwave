@@ -1,0 +1,16 @@
+SW-122 manual check, Sun Nov  1 21:13:09 PST 2026, branch role-b/SW-122-register-login
+--- register
+{"user":{"id":"7","username":"sw122user"}}
+[HTTP 201]
+--- register again (duplicate)
+{"error":"Username or email already in use"}
+[HTTP 409]
+--- login (token redacted below)
+{"token":"<64-hex-token>","expiresAt":"2026-11-09T05:13:10.901Z"}
+[HTTP 200]
+--- wrong password
+{"error":"Invalid username or password"}
+[HTTP 401]
+--- unknown user
+{"error":"Invalid username or password"}
+[HTTP 401]
