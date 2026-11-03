@@ -7,7 +7,17 @@ import { mockTracks } from "./test/apiMocks";
 
 // SW-220: Mock API responses so navigation tests do not
 // require a running backend or PostgreSQL database.
-vi.mock("./services/api");
+// Keep the real LoginRequestError class so its message is not erased by auto-mocking.
+// Mock only network-facing functions used by App and its child components.
+vi.mock("./services/api", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    login: vi.fn(),
+    getHealth: vi.fn(),
+    getTracks: vi.fn(),
+  };
+});
 
 beforeEach(() => {
   mockTracks.success();
@@ -168,7 +178,7 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
     expect(await screen.findByText("Signed in as Alice")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(screen.queryByText("Signed in as Alice")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(within(screen.getByRole("complementary")).getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
