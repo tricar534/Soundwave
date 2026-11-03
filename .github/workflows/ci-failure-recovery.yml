@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SIMULATE_FAILURE: "true"
+      SIMULATE_FAILURE: "false"
 
     steps:
       - name: Run controlled CI validation
