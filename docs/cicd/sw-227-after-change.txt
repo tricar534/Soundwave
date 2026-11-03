@@ -1,0 +1,145 @@
+
+> backend@1.0.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/tanus/Soundwave/backend[39m
+
+ [32m✓[39m tests/normalizeTrackId.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/validateTrackId.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstdout[2m | tests/unknownRoute.test.ts
+[22m[39m◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstdout[2m | tests/unknownRoute.test.ts[2m > [22m[2munknown routes[2m > [22m[2mreturns 404 for a path that does not match any route
+[22m[39m[Soundwave Request] {"requestId":"8649b93f-d3ec-43d6-be8a-85b480e72ed0","method":"GET","path":"/api/does-not-exist","status":404,"durationMs":3}
+
+[90mstdout[2m | src/app.test.ts
+[22m[39m◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mreturns the correct track and status 200
+[22m[39m[Soundwave Request] {"requestId":"2561cb6b-0c81-4ead-9211-98bf11aa88ac","method":"GET","path":"/17","status":200,"durationMs":9}
+
+[90mstdout[2m | tests/unknownRoute.test.ts[2m > [22m[2munknown routes[2m > [22m[2mreturns 404 for a nested unknown path
+[22m[39m[Soundwave Request] {"requestId":"3c15c8d4-a992-4d21-aa0a-20f6de8b66a5","method":"GET","path":"/api/tracks/17/extra/nested","status":404,"durationMs":1}
+
+[90mstdout[2m | tests/unknownRoute.test.ts[2m > [22m[2munknown routes[2m > [22m[2mreturns 200 for the root path (SW-215 API directory page)
+[22m[39m[Soundwave Request] {"requestId":"a04c7a5d-2fdd-4498-8bd9-9216c1c71154","method":"GET","path":"/","status":200,"durationMs":3}
+
+[90mstdout[2m | tests/routes.test.ts[2m > [22m[2mBackend routes[2m > [22m[2mGET /health returns backend health status
+[22m[39m[Soundwave Request] {"requestId":"546681cb-135c-43dd-9d57-e962e35f6649","method":"GET","path":"/health","status":200,"durationMs":7}
+
+[90mstdout[2m | tests/unknownRoute.test.ts[2m > [22m[2munknown routes[2m > [22m[2mreturns 404 for an unsupported HTTP method on a route that only accepts GET
+[22m[39m[Soundwave Request] {"requestId":"f3a25e10-e084-4873-8573-dd720c5230ba","method":"POST","path":"/health","status":404,"durationMs":0}
+
+ [32m✓[39m tests/unknownRoute.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID abc without querying the database
+[22m[39m[Soundwave Request] {"requestId":"562f41bb-492a-4d5d-864a-e27d77992522","method":"GET","path":"/abc","status":400,"durationMs":2}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID 0 without querying the database
+[22m[39m[Soundwave Request] {"requestId":"987e1468-3c98-4cd6-b9e6-fd0e1e468ed6","method":"GET","path":"/0","status":400,"durationMs":1}
+
+[90mstdout[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns matching tracks for a valid search
+[22m[39m[Soundwave Request] {"requestId":"5adc7d15-523c-4541-9d07-a5bb20873aa7","method":"GET","path":"/","status":200,"durationMs":7}
+
+[90mstdout[2m | tests/routes.test.ts[2m > [22m[2mBackend routes[2m > [22m[2mGET /api/tracks returns the track list response
+[22m[39m[Soundwave Request] {"requestId":"d415125b-d7dc-4841-9aad-5dc448975530","method":"GET","path":"/","status":200,"durationMs":2}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID -1 without querying the database
+[22m[39m[Soundwave Request] {"requestId":"7a49544b-b394-4d9f-9887-ea74112646ca","method":"GET","path":"/-1","status":400,"durationMs":1}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID 17abc without querying the database
+[22m[39m[Soundwave Request] {"requestId":"284b74e5-e9a5-4952-a9a4-0594b1872d96","method":"GET","path":"/17abc","status":400,"durationMs":1}
+
+[90mstdout[2m | tests/routes.test.ts[2m > [22m[2mBackend routes[2m > [22m[2mreturns multiple tracks from PostgreSQL query results
+[22m[39m[Soundwave Request] {"requestId":"c7a6b482-e8e8-40d0-bb70-8a3b5294d94a","method":"GET","path":"/","status":200,"durationMs":1}
+
+[90mstdout[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns 400 when the search query is missing
+[22m[39m[Soundwave Request] {"requestId":"1a960077-a6bf-49aa-b89a-3fece7d9fcf3","method":"GET","path":"/","status":400,"durationMs":1}
+
+[90mstdout[2m | src/app.test.ts[2m > [22m[2msecurity headers[2m > [22m[2msets X-Content-Type-Options to nosniff
+[22m[39m[Soundwave Request] {"requestId":"21cd2e4f-d7db-4833-b70e-fa4fbc4dd1fa","method":"GET","path":"/health","status":200,"durationMs":4}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID 01 without querying the database
+[22m[39m[Soundwave Request] {"requestId":"b49a638b-ae56-410f-a128-8f42b6adc916","method":"GET","path":"/01","status":400,"durationMs":1}
+
+[90mstdout[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns 400 for an empty search query
+[22m[39m[Soundwave Request] {"requestId":"da7a5bb9-24b4-49d7-9db5-47a7026d105c","method":"GET","path":"/","status":400,"durationMs":1}
+
+[90mstdout[2m | tests/routes.test.ts[2m > [22m[2mBackend routes[2m > [22m[2mreturns 500 when the track catalog query fails
+[22m[39m[Soundwave Request] {"requestId":"00d03578-8237-46c2-b360-37e17252162e","method":"GET","path":"/","status":500,"durationMs":1}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID 9223372036854775808 without querying the database
+[22m[39m[Soundwave Request] {"requestId":"8633b0ee-3b97-42d3-8413-a8d2cdd740e8","method":"GET","path":"/9223372036854775808","status":400,"durationMs":0}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID 999999999999999999999999 without querying the database
+[22m[39m[Soundwave Request] {"requestId":"7000c7cb-1a1e-4367-a08c-63f8fe01927d","method":"GET","path":"/999999999999999999999999","status":400,"durationMs":0}
+
+[90mstdout[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns 400 for a whitespace-only search query
+[22m[39m[Soundwave Request] {"requestId":"3af6b7d6-084d-436d-9f3a-4972d691c840","method":"GET","path":"/","status":400,"durationMs":1}
+
+[90mstdout[2m | tests/routes.test.ts[2m > [22m[2mBackend routes[2m > [22m[2mqueries tracks ordered by ID ascending
+[22m[39m[Soundwave Request] {"requestId":"e2ff886e-5364-488b-aa2d-e3f20cc679a5","method":"GET","path":"/","status":200,"durationMs":1}
+
+[90mstdout[2m | src/app.test.ts[2m > [22m[2msecurity headers[2m > [22m[2msets X-Frame-Options to DENY
+[22m[39m[Soundwave Request] {"requestId":"bb14b39d-d22b-4235-ae28-f8d2847565f1","method":"GET","path":"/health","status":200,"durationMs":1}
+
+[90mstdout[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns 400 for a search query over 100 characters
+[22m[39m[Soundwave Request] {"requestId":"97540035-5de4-4d95-82a4-6abdf38f06b3","method":"GET","path":"/","status":400,"durationMs":0}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mrejects invalid ID 1%20OR%201%3D1 without querying the database
+[22m[39m[Soundwave Request] {"requestId":"27276b14-0029-4e90-86a3-b74ddccaa84a","method":"GET","path":"/1%20OR%201%3D1","status":400,"durationMs":1}
+
+ [32m✓[39m tests/routes.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+[90mstdout[2m | src/app.test.ts[2m > [22m[2msecurity headers[2m > [22m[2msets a Strict-Transport-Security header
+[22m[39m[Soundwave Request] {"requestId":"e01c6614-d924-4378-8ccc-43bf297a726c","method":"GET","path":"/health","status":200,"durationMs":1}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mreturns 404 when a track does not exist
+[22m[39m[Soundwave Request] {"requestId":"a82ed093-d091-48b6-91bf-abb2ba4d7ace","method":"GET","path":"/999999","status":404,"durationMs":1}
+
+[90mstderr[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns 500 when the database search fails
+[22m[39mFailed to search tracks: Error: Database connection failed
+    at C:/Users/tanus/Soundwave/backend/tests/search.routes.test.ts:99:33
+    at [90mfile:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:1628:35
+    at [90mfile:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:2783:26
+    at [90mfile:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:3321:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:3316:10[90m)[39m
+    at [90mfile:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:3301:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:3259:10[90m)[39m
+    at [90mfile:///C:/Users/tanus/Soundwave/backend/[39mnode_modules/[4mvitest[24m/dist/chunks/run.BTlFXlnv.js:3882:64
+
+[90mstdout[2m | tests/search.routes.test.ts[2m > [22m[2mGET /api/search[2m > [22m[2mreturns 500 when the database search fails
+[22m[39m[Soundwave Request] {"requestId":"a83408fe-40b8-4f80-8d77-11a27cafd394","method":"GET","path":"/","status":500,"durationMs":5}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2maccepts valid BigInt boundary 1
+[22m[39m[Soundwave Request] {"requestId":"110e5e91-2bfe-4adb-9968-c432b5c1d9d0","method":"GET","path":"/1","status":404,"durationMs":1}
+
+[90mstdout[2m | src/app.test.ts[2m > [22m[2msecurity headers[2m > [22m[2msets a Content-Security-Policy header without unrestricted wildcard sources
+[22m[39m[Soundwave Request] {"requestId":"dd855008-3ca3-489c-aee6-c2661777bd91","method":"GET","path":"/health","status":200,"durationMs":1}
+
+ [32m✓[39m tests/search.routes.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2maccepts valid BigInt boundary 9223372036854775807
+[22m[39m[Soundwave Request] {"requestId":"18ee2d23-42d4-416a-a601-a0c8e949111b","method":"GET","path":"/9223372036854775807","status":404,"durationMs":0}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2muses a parameterized SQL query
+[22m[39m[Soundwave Request] {"requestId":"0f7e38a4-4b96-43b5-8f64-8ef46128d1be","method":"GET","path":"/17","status":404,"durationMs":0}
+
+[90mstdout[2m | src/app.test.ts[2m > [22m[2msecurity headers[2m > [22m[2mpreserves the existing /health response
+[22m[39m[Soundwave Request] {"requestId":"a1b1c239-4ef4-4677-8b83-e6f622736568","method":"GET","path":"/health","status":200,"durationMs":1}
+
+[90mstdout[2m | tests/trackDetail.routes.test.ts[2m > [22m[2mGET /api/tracks/:id[2m > [22m[2mreturns 500 without exposing internal database errors
+[22m[39m[Soundwave Request] {"requestId":"603ae7eb-eb0a-4104-a2cf-fb51414f0289","method":"GET","path":"/17","status":500,"durationMs":1}
+
+ [32m✓[39m tests/trackDetail.routes.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32m✓[39m src/app.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+[90mstdout[2m | tests/integration/backendDatabase.smoke.test.ts
+[22m[39m◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+ [2m[90m↓[39m[22m tests/integration/backendDatabase.smoke.test.ts [2m([22m[2m5 tests[22m[2m | [22m[33m3 skipped[39m[2m | [22m[90m2 todo[39m[2m)[22m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (8)[39m
+[2m      Tests [22m [1m[32m71 passed[39m[22m[2m | [22m[33m3 skipped[39m[2m | [22m[90m2 todo[39m[90m (76)[39m
+[2m   Start at [22m 21:03:48
+[2m   Duration [22m 1.30s[2m (import 63%, transform 21%, tests 14%, worker 2%)[22m
+
