@@ -40,3 +40,28 @@ export const mockTracks = {
 export function silenceConsoleError() {
   return vi.spyOn(console, "error").mockImplementation(() => {});
 }
+
+// SW-MS: shared searchTracks() fixtures for Music Search integration tests.
+// Requires the test file to call vi.mock("../services/api") first.
+export const mockSearch = {
+  success(tracks) {
+    vi.mocked(api.searchTracks).mockResolvedValue({
+      tracks,
+      count: tracks.length,
+    });
+  },
+
+  empty() {
+    vi.mocked(api.searchTracks).mockResolvedValue({ tracks: [], count: 0 });
+  },
+
+  httpError(status) {
+    vi.mocked(api.searchTracks).mockRejectedValue(
+      new Error(`Request failed with status ${status}`)
+    );
+  },
+
+  networkFailure() {
+    vi.mocked(api.searchTracks).mockRejectedValue(new TypeError("fetch failed"));
+  },
+};

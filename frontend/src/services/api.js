@@ -43,6 +43,10 @@ export function getTracks() {
   return request("/tracks");
 }
 
+export function searchTracks(query) {
+  return request(`/search?q=${encodeURIComponent(query)}`);
+}
+
 // Sprint 4 Task 2 - frontend-only integration contract (confirm with backend owner):
 // POST /api/auth/login with { identifier, password }.
 // A successful response is JSON. Authentication state/session persistence

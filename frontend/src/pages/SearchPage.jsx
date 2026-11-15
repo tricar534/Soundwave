@@ -1,124 +1,70 @@
 import { useEffect, useState } from "react";
 import MediaCard from "../components/MediaCard";
 import PageHeader from "../components/PageHeader";
-import { getTracks } from "../services/api";
+import { getTracks, searchTracks } from "../services/api";
 import { getTrackArtwork } from "../utils/trackArtwork";
 
-const mockSongs = [
-  {
-    id: 1,
-    title: "Midnight Drive",
-    subtitle: "Example Artist",
-    image: getTrackArtwork("Midnight Drive"),
-    type: "Song",
-  },
-  {
-    id: 2,
-    title: "Chill Waves",
-    subtitle: "Soundwave Mix",
-    image: "/images/beach.jpeg",
-    type: "Playlist",
-  },
-  {
-    id: 3,
-    title: "Focus Mode",
-    subtitle: "Study Playlist",
-    image: "/images/sunset.jpeg",
-    type: "Playlist",
-  },
-  {
-    id: 4,
-    title: "Late Night Mix",
+// Map a backend track record into the shape MediaCard expects.
+function mapTrack(track) {
+  return {
+    id: track.id,
+    title: track.title,
     subtitle: "Soundwave",
-    image: "/images/highway.jpeg",
-    type: "Playlist",
-  },
-  {
-  id: 5,
-  title: "City Lights",
-  subtitle: "Neon Echo",
-  image: "/images/city-light.jpeg",
-  type: "Song",
-},
-{
-  id: 6,
-  title: "Discover Weekly",
-  subtitle: "Soundwave",
-  image: "/images/hand.jpeg",
-  type: "Playlist",
-},
-{
-  id: 7,
-  title: "Study Session",
-  subtitle: "Soundwave Focus",
-  image: "/images/morning.jpeg",
-  type: "Playlist",
-},
-{
-  id: 8,
-  title: "Weekend Vibes",
-  subtitle: "Soundwave Mix",
-  image: "/images/beach.jpeg",
-  type: "Playlist",
-},
-{
-  id: 9,
-  title: "After Hours",
-  subtitle: "Night Collective",
-  image: "/images/highway.jpeg",
-  type: "Album",
-},
-];
+    image: getTrackArtwork(track.title),
+    type: "Song",
+  };
+}
 
-function SearchPage({ 
-    onSelectTrack, 
-    initialQuery = "", 
-    onQueryChange,
-  }) {
+function SearchPage({
+  onSelectTrack,
+  initialQuery = "",
+  onQueryChange,
+}) {
 
-    // Initialize Search with the last query saved in App.
-    const [query, setQuery] = useState(initialQuery);
-    const [songs, setSongs] = useState(mockSongs);
-    const [catalogStatus, setCatalogStatus] = useState("loading");
+  // Initialize Search with the last query saved in App.
+  const [query, setQuery] = useState(initialQuery);
 
-    // Update the Search input and preserve its value in App.
-    function handleQueryChange(event) {
-      const nextQuery = event.target.value;
+  // Full catalog, shown when there is no active search query.
+  const [catalog, setCatalog] = useState([]);
+  const [catalogStatus, setCatalogStatus] = useState("loading");
 
-      // Immediately update Search results as the user types.
-      setQuery(nextQuery);
+  // Backend-driven search results, shown while a query is active.
+  // SW-MS: replaces the old client-side filter of the loaded catalog.
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchStatus, setSearchStatus] = useState("idle"); // idle | loading | success | error
 
-      // Save the query in App so navigating away doesn't erase it.
-      // Optional chaining keeps SearchPage usable in standalone tests.
-      onQueryChange?.(nextQuery);
-    }
-    
-   useEffect(() => {
+  // Update the Search input and preserve its value in App.
+  function handleQueryChange(event) {
+    const nextQuery = event.target.value;
+
+    // Immediately update Search results as the user types.
+    setQuery(nextQuery);
+
+    // Save the query in App so navigating away doesn't erase it.
+    // Optional chaining keeps SearchPage usable in standalone tests.
+    onQueryChange?.(nextQuery);
+  }
+
+  // Load the full catalog once, for the default browse view (no query).
+  useEffect(() => {
     async function loadTracks() {
       try {
         const data = await getTracks();
 
         if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-          const mappedTracks = data.tracks.map((track) => ({
-            id: track.id,
-            title: track.title,
-            subtitle: "Soundwave",
-            image: getTrackArtwork(track.title),
-            type: "Song",
-          }));
-
-          setSongs(mappedTracks);
+          setCatalog(data.tracks.map(mapTrack));
           setCatalogStatus("connected");
-        }else {
+        } else {
           // Backend is working, but no real catalog data exists yet.
-          setSongs(mockSongs);
+          setCatalog([]);
           setCatalogStatus("empty");
         }
       } catch (error) {
         console.error("Unable to load backend tracks:", error);
 
-        // Preserve working frontend content when API fails.
-        setSongs(mockSongs);
+        // SW-MS: no more hardcoded sample-data fallback that masks a
+        // real backend failure. Show an honest unavailable state instead.
+        setCatalog([]);
         setCatalogStatus("unavailable");
       }
     }
@@ -126,11 +72,50 @@ function SearchPage({
     loadTracks();
   }, []);
 
-  const results = songs.filter((song) =>
-    `${song.title} ${song.subtitle} ${song.type}`
-      .toLowerCase()
-      .includes(query.toLowerCase())
-  );
+  // Run a real backend search (GET /api/search) whenever the query changes.
+  // SW-MS: replaces filtering the already-loaded catalog in the browser.
+  useEffect(() => {
+    const trimmed = query.trim();
+
+    if (trimmed.length === 0) {
+      setSearchStatus("idle");
+      setSearchResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    setSearchStatus("loading");
+
+    // Small debounce so we don't hit the API on every keystroke.
+    const timeoutId = setTimeout(async () => {
+      try {
+        const data = await searchTracks(trimmed);
+
+        if (cancelled) return;
+
+        setSearchResults(
+          Array.isArray(data.tracks) ? data.tracks.map(mapTrack) : []
+        );
+        setSearchStatus("success");
+      } catch (error) {
+        if (cancelled) return;
+
+        console.error("Unable to search tracks:", error);
+
+        // SW-MS: a failed search shows a real error, not fake results.
+        setSearchResults([]);
+        setSearchStatus("error");
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [query]);
+
+  const isSearching = query.trim().length > 0;
+  const results = isSearching ? searchResults : catalog;
 
   return (
     <div className="page">
@@ -147,18 +132,25 @@ function SearchPage({
         onChange={handleQueryChange}
       />
 
-      {catalogStatus === "loading" && (
+      {!isSearching && catalogStatus === "loading" && (
         <p>Loading catalog...</p>
       )}
-      
-      {catalogStatus === "empty" && (
-        <p>Backend catalog is empty. Showing sample content.</p>
+
+      {!isSearching && catalogStatus === "empty" && (
+        <p>No tracks in the catalog yet.</p>
       )}
 
-      {catalogStatus === "unavailable" && (
-        <p>Backend unavailable. Showing sample content.</p>
+      {!isSearching && catalogStatus === "unavailable" && (
+        <p>Backend unavailable. Please try again later.</p>
       )}
 
+      {isSearching && searchStatus === "loading" && (
+        <p>Searching...</p>
+      )}
+
+      {isSearching && searchStatus === "error" && (
+        <p>Search failed. Please try again.</p>
+      )}
 
       <div className="media-grid">
         {results.map((song) => (
@@ -176,7 +168,8 @@ function SearchPage({
           />
         ))}
       </div>
-      {results.length === 0 && (
+
+      {isSearching && searchStatus === "success" && results.length === 0 && (
         <p>No songs, artists, or playlists found.</p>
       )}
     </div>

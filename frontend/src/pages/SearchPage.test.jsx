@@ -4,23 +4,23 @@ import SearchPage from "./SearchPage";
 import * as api from "../services/api";
 import {
   mockTracks,
+  mockSearch,
   silenceConsoleError,
 } from "../test/apiMocks";
 
-// SW-97: SearchPage catalog states (from SW-48) tested with the shared
-// SW-96 fixtures. getTracks is always mocked, so no live backend is needed.
+// SW-MS: SearchPage now loads the browse catalog via getTracks (SW-97
+// fixtures) and runs real searches via GET /api/search (new mockSearch
+// fixtures), instead of filtering the catalog in the browser against a
+// hardcoded sample-data fallback.
 
 vi.mock("../services/api");
 
-const LOADING = "Loading catalog...";
-const EMPTY = "Backend catalog is empty. Showing sample content.";
-const UNAVAILABLE = "Backend unavailable. Showing sample content.";
-
-function expectSampleContent() {
-  expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
-  expect(screen.getByText("Chill Waves")).toBeInTheDocument();
-  expect(screen.getByText("After Hours")).toBeInTheDocument();
-}
+const CATALOG_LOADING = "Loading catalog...";
+const CATALOG_EMPTY = "No tracks in the catalog yet.";
+const CATALOG_UNAVAILABLE = "Backend unavailable. Please try again later.";
+const SEARCHING = "Searching...";
+const SEARCH_ERROR = "Search failed. Please try again.";
+const NO_RESULTS = "No songs, artists, or playlists found.";
 
 function search(value) {
   fireEvent.change(screen.getByPlaceholderText("Search Soundwave"), {
@@ -28,226 +28,217 @@ function search(value) {
   });
 }
 
-function expectFilteringWorks() {
-  search("Midnight");
-  expect(screen.getByText("Midnight Drive")).toBeInTheDocument();
-  expect(screen.queryByText("Chill Waves")).not.toBeInTheDocument();
-
-  search("zzz-no-match");
-  expect(
-    screen.getByText("No songs, artists, or playlists found.")
-  ).toBeInTheDocument();
-
-  search("");
-  expectSampleContent();
-}
+const realTrack = {
+  id: "101",
+  albumId: "1",
+  title: "Real Track",
+  trackNumber: 1,
+  durationMs: 200000,
+  isAvailable: true,
+};
 
 describe("SearchPage", () => {
-  describe("loading state", () => {
-    it("shows the loading message while getTracks is pending", () => {
-      // A promise that never settles keeps the page in "loading".
+  describe("catalog browse view (no active query)", () => {
+    // MS-REG-02: catalog loading state still shown before getTracks resolves.
+    it("shows the loading message while getTracks is pending", async () => {
       vi.mocked(api.getTracks).mockReturnValue(new Promise(() => {}));
 
       render(<SearchPage />);
 
-      expect(screen.getByText(LOADING)).toBeInTheDocument();
-      expect(screen.queryByText(EMPTY)).not.toBeInTheDocument();
-      expect(screen.queryByText(UNAVAILABLE)).not.toBeInTheDocument();
-      expectSampleContent();
-      expect(api.getTracks).toHaveBeenCalledTimes(1);
-    });
-
-    it("exposes the Search heading by role", () => {
-      vi.mocked(api.getTracks).mockReturnValue(new Promise(() => {}));
-
-      render(<SearchPage />);
-
+      expect(screen.getByText(CATALOG_LOADING)).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "Search" })
       ).toBeInTheDocument();
     });
 
-    it("still filters while loading", () => {
-      vi.mocked(api.getTracks).mockReturnValue(new Promise(() => {}));
-
-      render(<SearchPage />);
-
-      expectFilteringWorks();
-    });
-  });
-
-  describe("empty catalog", () => {
-    it("shows the empty-catalog status and keeps sample content", async () => {
-      mockTracks.empty();
-
-      render(<SearchPage />);
-
-      expect(await screen.findByText(EMPTY)).toBeInTheDocument();
-      expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
-      expectSampleContent();
-    });
-
-    it("still filters after the empty state", async () => {
-      mockTracks.empty();
-
-      render(<SearchPage />);
-      await screen.findByText(EMPTY);
-
-      expectFilteringWorks();
-    });
-  });
-
-  describe("HTTP error", () => {
-    it("shows the unavailable status and keeps sample content", async () => {
-      const consoleError = silenceConsoleError();
-      mockTracks.httpError(500);
-
-      render(<SearchPage />);
-
-      expect(await screen.findByText(UNAVAILABLE)).toBeInTheDocument();
-      expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
-      expectSampleContent();
-      expect(consoleError).toHaveBeenCalled();
-    });
-
-    it("still filters after an HTTP error", async () => {
-      silenceConsoleError();
-      mockTracks.httpError(500);
-
-      render(<SearchPage />);
-      await screen.findByText(UNAVAILABLE);
-
-      expectFilteringWorks();
-    });
-  });
-
-  describe("network failure", () => {
-    it("shows the unavailable status and keeps sample content", async () => {
-      const consoleError = silenceConsoleError();
-      mockTracks.networkFailure();
-
-      render(<SearchPage />);
-
-      expect(await screen.findByText(UNAVAILABLE)).toBeInTheDocument();
-      expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
-      expectSampleContent();
-      expect(consoleError).toHaveBeenCalled();
-    });
-
-    it("still filters after a network failure", async () => {
-      silenceConsoleError();
-      mockTracks.networkFailure();
-
-      render(<SearchPage />);
-      await screen.findByText(UNAVAILABLE);
-
-      expectFilteringWorks();
-    });
-  });
-
-  
-  describe("backend returns tracks", () => {
-    it("displays real backend tracks instead of sample content", async () => {
+    // MS-REG-01: full catalog still loads via getTracks when there is no query.
+    it("displays backend tracks once getTracks resolves", async () => {
       mockTracks.success();
 
       render(<SearchPage />);
 
-      // Verify the backend track appears.
       expect(await screen.findByText("Real Track")).toBeInTheDocument();
-
-      // Verify loading and warning messages disappear.
-      expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
-      expect(screen.queryByText(EMPTY)).not.toBeInTheDocument();
-      expect(screen.queryByText(UNAVAILABLE)).not.toBeInTheDocument();
-
-      // Real tracks replace the sample catalog.
-      expect(screen.queryByText("Midnight Drive")).not.toBeInTheDocument();
-      expect(screen.queryByText("Chill Waves")).not.toBeInTheDocument();
-
-      // Verify searching real backend tracks.
-      search("Real");
-      expect(screen.getByText("Real Track")).toBeInTheDocument();
-
-      // Verify no matching results.
-      search("nonexistent-song");
-      expect(
-        screen.getByText("No songs, artists, or playlists found.")
-      ).toBeInTheDocument();
-
-      // Clearing search restores the backend catalog.
-      search("");
-      expect(screen.getByText("Real Track")).toBeInTheDocument();
+      expect(screen.queryByText(CATALOG_LOADING)).not.toBeInTheDocument();
     });
 
-    it("allows selecting a real backend track", async () => {
+    // MS-REG-03: catalog empty state still shown when there are no real tracks.
+    it("shows the empty-catalog status when getTracks returns no tracks", async () => {
+      mockTracks.empty();
+
+      render(<SearchPage />);
+
+      expect(await screen.findByText(CATALOG_EMPTY)).toBeInTheDocument();
+      expect(screen.queryByText(CATALOG_LOADING)).not.toBeInTheDocument();
+    });
+
+    // MS-REG-04: catalog unavailable state still shown on a real backend
+    // failure (SW-MS: no more silent fallback to fake sample tracks).
+    it("shows the unavailable status on an HTTP error, with no sample content", async () => {
+      const consoleError = silenceConsoleError();
+      mockTracks.httpError(500);
+
+      render(<SearchPage />);
+
+      expect(await screen.findByText(CATALOG_UNAVAILABLE)).toBeInTheDocument();
+      expect(screen.queryByText("Midnight Drive")).not.toBeInTheDocument();
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    it("shows the unavailable status on a network failure, with no sample content", async () => {
+      const consoleError = silenceConsoleError();
+      mockTracks.networkFailure();
+
+      render(<SearchPage />);
+
+      expect(await screen.findByText(CATALOG_UNAVAILABLE)).toBeInTheDocument();
+      expect(screen.queryByText("Chill Waves")).not.toBeInTheDocument();
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    // MS-REG-05: selecting a track from the catalog still notifies the parent.
+    it("allows selecting a real backend track from the catalog", async () => {
       mockTracks.success();
       const onSelectTrack = vi.fn();
 
       render(<SearchPage onSelectTrack={onSelectTrack} />);
 
-      // Wait until the backend track appears.
       const track = await screen.findByText("Real Track");
-
-      // Select the track.
       fireEvent.click(track);
 
-      // Verify the correct track is passed to the parent.
       expect(onSelectTrack).toHaveBeenCalledTimes(1);
       expect(onSelectTrack).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "101",
           title: "Real Track",
           subtitle: "Soundwave",
-          image: "/images/lofi.jpeg",
           type: "Song",
         })
       );
     });
 
-    // SW-220: Verify that Search accepts a submitted query from Home.
-    it("filters backend tracks using the initial query", async () => {
+    // MS-REG-06: initialQuery (SW-220) still seeds the input and still
+    // triggers a real search rather than a client-side filter.
+    it("runs a real search immediately when initialQuery is set", async () => {
       mockTracks.success();
+      mockSearch.success([realTrack]);
 
       render(<SearchPage initialQuery="Real" />);
 
-      // Verify the query from Home appears in Search.
       expect(
         screen.getByPlaceholderText("Search Soundwave")
       ).toHaveValue("Real");
 
-      // Confirm that the matching backend track is displayed.
-      expect(
-        await screen.findByText("Real Track")
-      ).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      expect(await screen.findByText("Real Track")).toBeInTheDocument();
+      expect(api.searchTracks).toHaveBeenCalledWith("Real");
     });
+  });
 
-    // SW-220: Verify that changes to Search are saved in App.
-    it("reports Search input changes to App", async () => {
+  describe("active search (GET /api/search)", () => {
+    // MS-INT-01: typing a query calls the backend search endpoint and
+    // renders the tracks it returns.
+    it("calls searchTracks and renders matching tracks for a valid query", async () => {
       mockTracks.success();
-      const onQueryChange = vi.fn();
+      mockSearch.success([realTrack]);
 
-      render(
-        <SearchPage
-          initialQuery=""
-          onQueryChange={onQueryChange}
-        />
-      );
-
+      render(<SearchPage />);
       await screen.findByText("Real Track");
 
-      // Simulate typing directly into the Search page.
-      fireEvent.change(
-        screen.getByPlaceholderText("Search Soundwave"),
-        { target: { value: "Signal" } }
-      );
+      search("midnight");
+      expect(screen.getByText(SEARCHING)).toBeInTheDocument();
 
-      // Confirm that App receives the updated query.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      expect(await screen.findByText("Real Track")).toBeInTheDocument();
+      expect(api.searchTracks).toHaveBeenCalledWith("midnight");
+    });
+
+    // MS-INT-02: a nonexistent query returns a true empty state, not
+    // fake sample data.
+    it("shows a true empty state for a nonexistent query", async () => {
+      mockTracks.success();
+      mockSearch.empty();
+
+      render(<SearchPage />);
+      await screen.findByText("Real Track");
+
+      search("zzznosuchtrack491");
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      expect(await screen.findByText(NO_RESULTS)).toBeInTheDocument();
+      expect(screen.queryByText("Real Track")).not.toBeInTheDocument();
+      expect(api.searchTracks).toHaveBeenCalledWith("zzznosuchtrack491");
+    });
+
+    // MS-INT-03: clearing the query returns to the full catalog view
+    // instead of an empty filtered list.
+    it("returns to the full catalog view when the query is cleared", async () => {
+      mockTracks.success();
+      mockSearch.empty();
+
+      render(<SearchPage />);
+      await screen.findByText("Real Track");
+
+      search("zzznosuchtrack491");
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      await screen.findByText(NO_RESULTS);
+
+      search("");
+
+      expect(await screen.findByText("Real Track")).toBeInTheDocument();
+      expect(screen.queryByText(NO_RESULTS)).not.toBeInTheDocument();
+    });
+
+    // MS-INT-04: a failed backend search shows a real error state, not
+    // fake sample data (the SW-MS fallback-removal requirement).
+    it("shows a search error state when the backend search fails, with no sample content", async () => {
+      const consoleError = silenceConsoleError();
+      mockTracks.success();
+      mockSearch.httpError(500);
+
+      render(<SearchPage />);
+      await screen.findByText("Real Track");
+
+      search("midnight");
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      expect(await screen.findByText(SEARCH_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText("Midnight Drive")).not.toBeInTheDocument();
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    // MS-INT-05: rapid typing debounces to a single backend call rather
+    // than one request per keystroke.
+    it("debounces rapid typing into a single search call", async () => {
+      mockTracks.success();
+      mockSearch.success([realTrack]);
+
+      render(<SearchPage />);
+      await screen.findByText("Real Track");
+
+      search("m");
+      search("mi");
+      search("mid");
+
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      expect(api.searchTracks).toHaveBeenCalledTimes(1);
+      expect(api.searchTracks).toHaveBeenCalledWith("mid");
+    });
+
+    // SW-220 regression: Search still reports input changes to App.
+    it("reports Search input changes to App", async () => {
+      mockTracks.success();
+      mockSearch.empty();
+      const onQueryChange = vi.fn();
+
+      render(<SearchPage onQueryChange={onQueryChange} />);
+      await screen.findByText("Real Track");
+
+      search("Signal");
+
       expect(onQueryChange).toHaveBeenCalledWith("Signal");
-
-      // The test catalog only contains "Real Track".
-      expect(
-        screen.getByText("No songs, artists, or playlists found.")
-      ).toBeInTheDocument();
     });
   });
 });
