@@ -58,7 +58,6 @@ export default function StreamingPlaybackBar(props) {
     setCatalogTrack(externalTrack);
     setMode('catalog');
     setError('');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   // Each developer may play any audio file they choose, without server uploads.
