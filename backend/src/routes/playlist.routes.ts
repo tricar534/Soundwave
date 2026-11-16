@@ -63,4 +63,49 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
   }
 });
 
+ // SW-251: Retrieve all playlists belonging to the authenticated user.
+ router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
+   // Identify the user from their authenticated session.
+   const userId = req.auth?.userId;
+
+   if (!userId) {
+     res.status(401).json({
+       error: 'Authentication required',
+     });
+     return;
+   }
+
+   try {
+     // Retrieve only playlists owned by the current user.
+     // Display the newest playlists first.
+     const result = await pool.query(
+       `
+       SELECT
+         id::text AS "id",
+         user_id::text AS "userId",
+         name,
+         created_at AS "createdAt",
+         updated_at AS "updatedAt"
+       FROM playlists
+       WHERE user_id = $1
+       ORDER BY created_at DESC, id DESC
+       `,
+       [userId]
+     );
+
+     // Return the user's playlists and total count.
+     res.status(200).json({
+       playlists: result.rows,
+       count: result.rows.length,
+     });
+   } catch (error) {
+     // Handle database failures without exposing internal details.
+     console.error('Failed to retrieve playlists:', error);
+
+     res.status(500).json({
+       error: 'Internal server error',
+     });
+   }
+ });
+
 export default router;
