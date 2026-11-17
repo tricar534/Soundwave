@@ -4,7 +4,7 @@ import PlaybackBar from "./components/PlaybackBar";
 import HomePage from "./pages/HomePage";
 import SearchPage from "./pages/SearchPage";
 import LibraryPage from "./pages/LibraryPage";
-import { login } from "./services/api";
+import { login, getCurrentUser, LoginRequestError } from "./services/api";
 import { extractAuthenticatedUser } from "./auth/authUser";
 import LoginPage from "./pages/LoginPage";
 import "./styles/app.css";
@@ -36,7 +36,11 @@ function App() {
   async function handleLogin(credentials) {
     const response = await login(credentials);
     // Do not mark a user signed in merely because an HTTP request succeeded.
-    const user = extractAuthenticatedUser(response);
+    if (typeof response?.token !== "string" || !/^[0-9a-f]{64}$/.test(response.token)) {
+      throw new LoginRequestError("The authentication server returned an invalid session.");
+    }
+    const sessionResponse = await getCurrentUser(response.token);
+    const user = extractAuthenticatedUser(sessionResponse);
     setAuthenticatedUser(user);
     setCurrentPage(intendedPage === "library" ? "library" : "home");
     setIntendedPage(null);

@@ -62,7 +62,7 @@ export async function login({ identifier, password }) {
     response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier: identifier.trim(), password }),
+      body: JSON.stringify({ username: identifier.trim(), password }),
     });
   } catch {
     // Do not display raw network errors, which can contain internal details.
@@ -97,4 +97,26 @@ export async function login({ identifier, password }) {
 
   // Do not store any returned tokens or user details here.
   return data;
+}
+
+export async function getCurrentUser(token) {
+  if (typeof token !== "string" || !/^[0-9a-f]{64}$/.test(token)) {
+    throw new LoginRequestError("Invalid authentication session.");
+  }
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/session/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new LoginRequestError("Cannot verify authentication session.");
+  }
+  if (!response.ok) {
+    throw new LoginRequestError("Authentication session could not be verified.", response.status);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new LoginRequestError("Invalid authentication session response.");
+  }
 }
