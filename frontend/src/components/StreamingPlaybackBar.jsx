@@ -9,13 +9,8 @@ import {
 } from '../services/audioPlayback';
 import { readLocalId3 } from '../services/readLocalId3';
 import { createPlaybackController, playbackErrorMessage } from '../services/playbackControls';
+import { formatPlaybackTime as formatTime, getPlaybackState, readPlaybackTimeline, seekPlayback } from '../services/playbackTimeline';
 import './StreamingPlaybackBar.css';
-
-function formatTime(seconds) {
-  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-  const rounded = Math.floor(seconds);
-  return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, '0')}`;
-}
 
 /**
  * Sprint 5, Task 3: real Soundwave audio playback.
@@ -48,6 +43,10 @@ export default function StreamingPlaybackBar(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [bufferedPercent, setBufferedPercent] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Choose a catalog track or local audio file.');
@@ -169,6 +168,10 @@ export default function StreamingPlaybackBar(props) {
     setIsPlaying(false);
     setProgress(0);
     setDuration(0);
+    setBufferedPercent(0);
+    setIsBuffering(false);
+    setIsSeeking(false);
+    setHasEnded(false);
     audio.load();
   }, [audioUrl]);
 
@@ -201,8 +204,30 @@ export default function StreamingPlaybackBar(props) {
     controllerRef.current.restart();
     setIsPlaying(false);
     setProgress(0);
+    setHasEnded(false);
+    setIsSeeking(false);
+    setIsBuffering(false);
     setError('');
     setStatus('Restarted — press Play.');
+  }
+
+  function syncTimeline(audio) {
+    const timeline = readPlaybackTimeline(audio);
+    setProgress(timeline.position);
+    setDuration(timeline.duration);
+    setBufferedPercent(timeline.bufferedPercent);
+  }
+
+  function handleSeek(event) {
+    const result = seekPlayback(audioRef.current, Number(event.target.value));
+    if (!result.ok) {
+      setError('Audio is not ready for seeking yet.');
+      return;
+    }
+    setProgress(result.position);
+    setHasEnded(false);
+    setError('');
+    setStatus(`Moved to ${formatTime(result.position)}.`);
   }
 
   function handlePlayerKeyDown(event) {
@@ -246,6 +271,10 @@ export default function StreamingPlaybackBar(props) {
     ? { title: localMeta?.title || localFile.name, artist: localMeta?.artist || 'Local file', artwork: localMeta?.artworkUrl }
     : displayTrack(catalogTrack || externalTrack);
   const hasSource = Boolean(audioUrl);
+  const playbackState = getPlaybackState({
+    hasSource, isLoading, hasError: Boolean(error), ended: hasEnded,
+    seeking: isSeeking, buffering: isBuffering, playing: isPlaying, position: progress,
+  });
 
   return (
     <section className="playback-bar sw-streamingbar" aria-label="Music streaming player"
@@ -254,13 +283,28 @@ export default function StreamingPlaybackBar(props) {
         ref={audioRef}
         src={audioUrl || undefined}
         preload="metadata"
-        onPlay={() => { setIsPlaying(true); setStatus('Playing audio.'); }}
+        onPlay={() => { setIsPlaying(true); setIsBuffering(false); setHasEnded(false); setStatus('Playing audio.'); }}
+        onPlaying={() => { setIsPlaying(true); setIsBuffering(false); }}
         onPause={() => setIsPlaying(false)}
-        onEnded={() => { setIsPlaying(false); setStatus('Track finished — press Play to replay.'); }}
-        onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
-        onDurationChange={(event) => {
-          const value = event.currentTarget.duration;
-          setDuration(Number.isFinite(value) ? value : 0);
+        onEnded={(event) => {
+          syncTimeline(event.currentTarget);
+          setIsPlaying(false);
+          setIsBuffering(false);
+          setIsSeeking(false);
+          setHasEnded(true);
+          setStatus('Track finished — press Play to replay.');
+        }}
+        onTimeUpdate={(event) => syncTimeline(event.currentTarget)}
+        onLoadedMetadata={(event) => syncTimeline(event.currentTarget)}
+        onDurationChange={(event) => syncTimeline(event.currentTarget)}
+        onProgress={(event) => syncTimeline(event.currentTarget)}
+        onWaiting={() => setIsBuffering(true)}
+        onCanPlay={() => setIsBuffering(false)}
+        onSeeking={() => { setIsSeeking(true); setHasEnded(false); }}
+        onSeeked={(event) => { syncTimeline(event.currentTarget); setIsSeeking(false); }}
+        onEmptied={() => {
+          setProgress(0); setDuration(0); setBufferedPercent(0);
+          setHasEnded(false); setIsBuffering(false); setIsSeeking(false);
         }}
         onError={() => {
           if (audioUrl) setError('The browser could not decode this audio format.');
@@ -289,11 +333,14 @@ export default function StreamingPlaybackBar(props) {
           </button>
           <label className="sw-streamingbar__progress-label">
             <span>{formatTime(progress)}</span>
-            <input aria-label="Playback position" type="range" min="0" max={duration || 1}
-              step="0.1" value={Math.min(progress, duration || 1)} disabled={!hasSource || !duration}
-              onChange={(event) => {
-                if (audioRef.current) audioRef.current.currentTime = Number(event.target.value);
-              }} />
+            <span className="sw-streamingbar__timeline">
+              <input aria-label="Playback position" type="range" min="0" max={duration || 1}
+                step="0.1" value={Math.min(progress, duration || 1)} disabled={!hasSource || !duration}
+                aria-valuetext={`${formatTime(progress)} of ${formatTime(duration)}`}
+                onChange={handleSeek} />
+              <progress className="sw-streamingbar__buffered" value={bufferedPercent} max="100"
+                aria-label="Buffered audio" title={`${Math.round(bufferedPercent)}% buffered`} />
+            </span>
             <span>{formatTime(duration)}</span>
           </label>
           <label className="sw-streamingbar__volume-label">
@@ -302,8 +349,13 @@ export default function StreamingPlaybackBar(props) {
               onChange={(event) => setVolume(Number(event.target.value))} />
           </label>
         </div>
-        {error && <p className="sw-streamingbar__error" role="alert">{error}</p>}
-        {!error && status && <p className="sw-streamingbar__status" role="status">{status}</p>}
+        <div className="sw-streamingbar__feedback">
+          <span className="sw-streamingbar__state" aria-label={`Playback state: ${playbackState}`}>
+            {playbackState}
+          </span>
+          {error && <p className="sw-streamingbar__error" role="alert">{error}</p>}
+          {!error && status && <p className="sw-streamingbar__status" role="status">{status}</p>}
+        </div>
       </div>
 
       <div className="sw-streamingbar__sources">

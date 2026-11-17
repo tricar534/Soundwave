@@ -45,3 +45,28 @@
   .sw-streamingbar { flex-wrap: wrap; }
   .sw-streamingbar__sources { flex: 1 1 100%; justify-content: flex-start; }
 }
+
+/* Sprint 5 Task 5: timeline, buffer and state UI. */
+.sw-streamingbar__timeline {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 50px;
+  gap: 3px;
+}
+.sw-streamingbar__timeline input[type="range"] { width: 100%; margin: 0; }
+.sw-streamingbar__buffered { width: 100%; height: 3px; margin: 0; accent-color: #8473bd; }
+.sw-streamingbar__feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 5px; }
+.sw-streamingbar__feedback .sw-streamingbar__status,
+.sw-streamingbar__feedback .sw-streamingbar__error { margin: 0; }
+.sw-streamingbar__state {
+  display: inline-flex;
+  align-items: center;
+  background: #352d50;
+  color: #e5dcff;
+  border: 1px solid #544775;
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
