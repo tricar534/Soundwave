@@ -8,6 +8,7 @@ import {
   pickSelectedTrack,
 } from '../services/audioPlayback';
 import { readLocalId3 } from '../services/readLocalId3';
+import { createPlaybackController, playbackErrorMessage } from '../services/playbackControls';
 import './StreamingPlaybackBar.css';
 
 function formatTime(seconds) {
@@ -31,6 +32,7 @@ export default function StreamingPlaybackBar(props) {
   const externalTrack = pickSelectedTrack(props);
   const selectedId = normalizeTrackId(externalTrack?.id ?? externalTrack?.trackId ?? externalTrack?.track_id);
   const audioRef = useRef(null);
+  const controllerRef = useRef(null);
   const inputRef = useRef(null);
   const [mode, setMode] = useState('none');
   const [catalogTrack, setCatalogTrack] = useState(null);
@@ -49,12 +51,20 @@ export default function StreamingPlaybackBar(props) {
   const [volume, setVolume] = useState(0.8);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Choose a catalog track or local audio file.');
+  if (!controllerRef.current) {
+    controllerRef.current = createPlaybackController(() => audioRef.current, {
+      onError: (err) => setError(playbackErrorMessage(err)),
+    });
+  }
   const token = props.authToken || props.sessionToken || props.accessToken || props.token || ownedToken;
   const activeId = normalizeTrackId(catalogTrack?.id ?? catalogTrack?.trackId ?? catalogTrack?.track_id);
 
   // Sync with existing Soundwave catalog selections. Does not replace other page state.
   useEffect(() => {
     if (!selectedId) return;
+    // A selected catalog song must stop any previous local/catalog audio.
+    controllerRef.current.stop();
+    setAudioUrl('');
     setCatalogTrack(externalTrack);
     setMode('catalog');
     setError('');
@@ -155,7 +165,7 @@ export default function StreamingPlaybackBar(props) {
     // Switching tracks resets playback position and prevents simultaneous sound.
     const audio = audioRef.current;
     if (!audio) return;
-    audio.pause();
+    controllerRef.current.stop();
     setIsPlaying(false);
     setProgress(0);
     setDuration(0);
@@ -177,18 +187,30 @@ export default function StreamingPlaybackBar(props) {
   }
 
   async function togglePlayback() {
-    const audio = audioRef.current;
-    if (!audio || !audioUrl || isLoading) return;
-    if (!audio.paused) {
-      audio.pause();
-      return;
-    }
+    if (!audioRef.current || !audioUrl || isLoading) return;
     setError('');
-    try {
-      await audio.play();
-    } catch (err) {
-      setError(err.message || 'Your browser blocked playback. Click Play again.');
+    const result = await controllerRef.current.toggle();
+    if (result === 'paused') {
+      setIsPlaying(false);
+      setStatus('Paused — press Play to resume.');
     }
+  }
+
+  function restartPlayback() {
+    if (!audioRef.current || !audioUrl || isLoading) return;
+    controllerRef.current.restart();
+    setIsPlaying(false);
+    setProgress(0);
+    setError('');
+    setStatus('Restarted — press Play.');
+  }
+
+  function handlePlayerKeyDown(event) {
+    // Space toggles playback only when the player region itself is focused,
+    // never while typing in the login form or Track ID field.
+    if (event.target !== event.currentTarget || event.code !== 'Space' || event.repeat) return;
+    event.preventDefault();
+    void togglePlayback();
   }
 
   function handleFile(event) {
@@ -198,6 +220,8 @@ export default function StreamingPlaybackBar(props) {
       setError('Please choose an audio file (MP3, WAV, OGG, FLAC, or M4A).');
       return;
     }
+    controllerRef.current.stop();
+    setAudioUrl('');
     setLocalFile(file);
     setMode('local');
     setError('');
@@ -211,6 +235,8 @@ export default function StreamingPlaybackBar(props) {
       setError('Enter a valid numeric track ID, such as the ID shown by /api/tracks.');
       return;
     }
+    controllerRef.current.stop();
+    setAudioUrl('');
     setCatalogTrack({ id, title: `Track ${id}` });
     setMode('catalog');
     setError('');
@@ -222,14 +248,15 @@ export default function StreamingPlaybackBar(props) {
   const hasSource = Boolean(audioUrl);
 
   return (
-    <section className="playback-bar sw-streamingbar" aria-label="Music streaming player">
+    <section className="playback-bar sw-streamingbar" aria-label="Music streaming player"
+      tabIndex={0} onKeyDown={handlePlayerKeyDown} title="Focus player then press Space to play or pause">
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
         preload="metadata"
-        onPlay={() => setIsPlaying(true)}
+        onPlay={() => { setIsPlaying(true); setStatus('Playing audio.'); }}
         onPause={() => setIsPlaying(false)}
-        onEnded={() => { setIsPlaying(false); setStatus('Track finished.'); }}
+        onEnded={() => { setIsPlaying(false); setStatus('Track finished — press Play to replay.'); }}
         onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)}
         onDurationChange={(event) => {
           const value = event.currentTarget.duration;
@@ -252,8 +279,13 @@ export default function StreamingPlaybackBar(props) {
       <div className="sw-streamingbar__center">
         <div className="sw-streamingbar__controls">
           <button type="button" className="sw-streamingbar__play" onClick={togglePlayback}
-            disabled={!hasSource || isLoading} aria-label={isPlaying ? 'Pause audio' : 'Play audio'}>
+            disabled={!hasSource || isLoading}
+            aria-label={isPlaying ? 'Pause audio' : progress > 0 && progress < duration ? 'Resume audio' : 'Play audio'}>
             {isPlaying ? '❚❚' : '▶'}
+          </button>
+          <button type="button" onClick={restartPlayback}
+            disabled={!hasSource || isLoading} aria-label="Restart track" title="Restart from beginning">
+            ↺
           </button>
           <label className="sw-streamingbar__progress-label">
             <span>{formatTime(progress)}</span>
