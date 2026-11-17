@@ -17,6 +17,7 @@ vi.mock("./services/api", async (importOriginal) => {
     getCurrentUser: vi.fn(),
     getHealth: vi.fn(),
     getTracks: vi.fn(),
+    searchTracks: vi.fn(),
   };
 });
 
@@ -28,6 +29,27 @@ beforeEach(() => {
   vi.mocked(api.login).mockReset();
   vi.mocked(api.getCurrentUser).mockReset();
   vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", username: "listener" } });
+
+  // SW-MS: Search now calls the real GET /api/search endpoint instead of
+  // filtering the catalog in the browser, so it needs its own mock here.
+  // Mirror the real backend's substring match against the one fixture track.
+  vi.mocked(api.searchTracks).mockImplementation(async (query) => {
+    const haystack = "real track";
+    const tracks = haystack.includes(query.toLowerCase())
+      ? [
+          {
+            id: "101",
+            albumId: "1",
+            title: "Real Track",
+            trackNumber: 1,
+            durationMs: 200000,
+            isAvailable: true,
+          },
+        ]
+      : [];
+
+    return { tracks, count: tracks.length };
+  });
 });
 
 describe("App search navigation", () => {
@@ -81,8 +103,10 @@ describe("App search navigation", () => {
       target: { value: "unknown" },
     });
 
+    // SW-MS: the result now comes back from a debounced backend call,
+    // not an instant client-side filter, so wait for it.
     expect(
-      screen.getByText("No songs, artists, or playlists found.")
+      await screen.findByText("No songs, artists, or playlists found.")
     ).toBeInTheDocument();
 
     // Navigate away from Search and return.

@@ -6,7 +6,9 @@ import readinessRoutes from './routes/readiness.routes';
 import { requestDiagnostics } from './middleware/requestDiagnostics';
 import searchRoutes from './routes/search.routes';
 import authRoutes from './routes/auth.routes';
+import audioRoutes from './routes/audio.routes';
 import sessionRoutes from './routes/session.routes';
+import playlistRoutes from './routes/playlist.routes';
 
 const app = express();
 
@@ -100,9 +102,11 @@ app.get('/health', (req, res) => {
 app.use('/ready', readinessRoutes);
 
 // Track API routes
+app.use('/api/tracks', audioRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/session', sessionRoutes);
+app.use('/api/playlists', playlistRoutes);
 
 export default app;
