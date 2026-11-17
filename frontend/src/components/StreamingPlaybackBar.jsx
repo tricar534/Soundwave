@@ -10,6 +10,7 @@ import {
 import { readLocalId3 } from '../services/readLocalId3';
 import { createPlaybackController, playbackErrorMessage } from '../services/playbackControls';
 import { formatPlaybackTime as formatTime, getPlaybackState, readPlaybackTimeline, seekPlayback } from '../services/playbackTimeline';
+import { progressBarStyle } from '../services/playbackPresentation';
 import './StreamingPlaybackBar.css';
 
 /**
@@ -337,6 +338,7 @@ export default function StreamingPlaybackBar(props) {
               <input aria-label="Playback position" type="range" min="0" max={duration || 1}
                 step="0.1" value={Math.min(progress, duration || 1)} disabled={!hasSource || !duration}
                 aria-valuetext={`${formatTime(progress)} of ${formatTime(duration)}`}
+                style={progressBarStyle({ position: progress, duration, bufferedPercent })}
                 onChange={handleSeek} />
               <progress className="sw-streamingbar__buffered" value={bufferedPercent} max="100"
                 aria-label="Buffered audio" title={`${Math.round(bufferedPercent)}% buffered`} />
