@@ -130,7 +130,7 @@ describe("Sprint 4 - frontend API integration in CI", () => {
       method: "POST",
       path: "/api/auth/login",
       contentType: "application/json",
-      payload: { identifier: "listener", password: SYNTHETIC_PASSWORD },
+      payload: { username: "listener", password: SYNTHETIC_PASSWORD },
     });
     expect(requests[0].path).not.toContain(SYNTHETIC_PASSWORD);
   });

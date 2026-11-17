@@ -14,16 +14,21 @@ vi.mock("./services/api", async (importOriginal) => {
   return {
     ...actual,
     login: vi.fn(),
+    getCurrentUser: vi.fn(),
     getHealth: vi.fn(),
     getTracks: vi.fn(),
     searchTracks: vi.fn(),
   };
 });
 
+const TEST_TOKEN = "a".repeat(64);
+
 beforeEach(() => {
   mockTracks.success();
   vi.mocked(api.getHealth).mockResolvedValue({ status: "ok" });
   vi.mocked(api.login).mockReset();
+  vi.mocked(api.getCurrentUser).mockReset();
+  vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", username: "listener" } });
 
   // SW-MS: Search now calls the real GET /api/search endpoint instead of
   // filtering the catalog in the browser, so it needs its own mock here.
@@ -137,7 +142,7 @@ describe("App search navigation", () => {
 
 describe("Sprint 4 Task 2 - App login API wiring", () => {
   it("submits the login page to the centralized auth API service", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "test-user" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
@@ -152,7 +157,7 @@ describe("Sprint 4 Task 2 - App login API wiring", () => {
     fireEvent.click(within(main).getByRole("button", { name: "Sign in" }));
 
     expect(api.login).toHaveBeenCalledWith({ identifier: "listener", password: "synthetic-only" });
-    expect(await screen.findByText("Signed in as Soundwave listener")).toBeInTheDocument();
+    expect(await screen.findByText("Signed in as listener")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 });
@@ -172,7 +177,8 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
   }
 
   it("starts signed out and signs in only after the API returns a valid user", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" }, token: "private-token" });
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
@@ -186,7 +192,7 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
   });
 
   it("retains the signed-in label during ordinary page navigation", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", username: "listener" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
     submitLogin();
     expect(await screen.findByText("Signed in as listener")).toBeInTheDocument();
@@ -197,7 +203,8 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
   });
 
   it("signs out locally and returns to the login page", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
     submitLogin();
     expect(await screen.findByText("Signed in as Alice")).toBeInTheDocument();
@@ -211,7 +218,7 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
     vi.mocked(api.login).mockResolvedValue({ token: "not-a-user" });
     render(<App />);
     submitLogin();
-    expect(await screen.findByRole("alert")).toHaveTextContent("invalid user response");
+    expect(await screen.findByRole("alert")).toHaveTextContent("invalid session");
     expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
   });
@@ -225,7 +232,8 @@ describe("Sprint 4 Task 3 - authentication state and UI logout", () => {
   });
 
   it("does not persist frontend authentication state across an App remount", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     const view = render(<App />);
     submitLogin();
     expect(await screen.findByText("Signed in as Alice")).toBeInTheDocument();
@@ -264,7 +272,7 @@ describe("Sprint 4 Task 4 - protected navigation and authentication errors", () 
   });
 
   it("returns to Library after successful login from the protected destination", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", username: "listener" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
     openLibraryAsGuest();
     submitLogin();
@@ -298,7 +306,8 @@ describe("Sprint 4 Task 4 - protected navigation and authentication errors", () 
   });
 
   it("cancels the Library redirect when the guest navigates to public pages", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
     openLibraryAsGuest();
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
@@ -313,7 +322,7 @@ describe("Sprint 4 Task 4 - protected navigation and authentication errors", () 
   });
 
   it("blocks Library access again after local logout", async () => {
-    vi.mocked(api.login).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
+    vi.mocked(api.login).mockResolvedValue({ token: TEST_TOKEN });
     render(<App />);
     openLibraryAsGuest();
     submitLogin();
@@ -344,9 +353,10 @@ describe("Sprint 4 - authentication workflow regression coverage", () => {
   }
 
   it("keeps Library protected after invalid credentials, then opens it after a corrected retry", async () => {
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-123", name: "Alice" } });
     vi.mocked(api.login)
       .mockRejectedValueOnce(new api.LoginRequestError("Incorrect email/username or password.", 401))
-      .mockResolvedValueOnce({ user: { id: "u-123", name: "Alice" } });
+      .mockResolvedValueOnce({ token: TEST_TOKEN });
     render(<App />);
     const main = requestLibraryAndSubmit();
 
@@ -367,6 +377,7 @@ describe("Sprint 4 - authentication workflow regression coverage", () => {
   });
 
   it("never opens protected content while the login request is still pending", async () => {
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ user: { id: "u-456", username: "late-listener" } });
     let resolveLogin;
     vi.mocked(api.login).mockImplementation(() => new Promise((resolve) => {
       resolveLogin = resolve;
@@ -379,7 +390,7 @@ describe("Sprint 4 - authentication workflow regression coverage", () => {
     expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
 
     await act(async () => {
-      resolveLogin({ user: { id: "u-456", username: "late-listener" } });
+      resolveLogin({ token: TEST_TOKEN });
     });
     expect(screen.getByRole("heading", { name: "Your Library" })).toBeInTheDocument();
     expect(screen.getByText("Signed in as late-listener")).toBeInTheDocument();
@@ -390,7 +401,7 @@ describe("Sprint 4 - authentication workflow regression coverage", () => {
     render(<App />);
     requestLibraryAndSubmit();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("invalid user response");
+    expect(await screen.findByRole("alert")).toHaveTextContent("invalid session");
     expect(screen.queryByRole("heading", { name: "Your Library" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
     expect(document.body.textContent).not.toContain("synthetic-token");

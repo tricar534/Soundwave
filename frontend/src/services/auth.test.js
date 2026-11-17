@@ -25,7 +25,7 @@ describe("Sprint 4 Task 2 - frontend authentication API", () => {
     expect(url).toBe("http://localhost:4000/api/auth/login");
     expect(options.method).toBe("POST");
     expect(options.headers).toEqual({ "Content-Type": "application/json" });
-    expect(JSON.parse(options.body)).toEqual({ identifier: "listener", password: "synthetic-only" });
+    expect(JSON.parse(options.body)).toEqual({ username: "listener", password: "synthetic-only" });
   });
 
   it.each([
@@ -111,7 +111,7 @@ describe("Sprint 4 - authentication API regression coverage", () => {
     expect(url).toBe("http://localhost:4000/api/auth/login");
     expect(url).not.toContain("spaces-are-part-of-the-password");
     expect(JSON.parse(options.body)).toEqual({
-      identifier: "test listener",
+      username: "test listener",
       password: "  spaces-are-part-of-the-password  ",
     });
   });
