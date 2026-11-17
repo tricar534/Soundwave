@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { pool } from '../db';
+import type { AudioByteRange } from '../utils/parseAudioRange';
 
 // SW-258: Restrict playback to catalog media stored within a configured directory.
 // File paths stored in media_files.file_path must be relative to MEDIA_ROOT.
@@ -68,6 +69,7 @@ function isMissing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException)?.code === 'ENOENT';
 }
 
-export function openAudioStream(file: AudioFile) {
-  return createReadStream(file.path);
+export function openAudioStream(file: AudioFile, range?: AudioByteRange) {
+  // start/end are inclusive. Node's createReadStream emits exactly this section.
+  return createReadStream(file.path, range ? { start: range.start, end: range.end } : undefined);
 }
